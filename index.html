@@ -1,25 +1,45 @@
 
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FamilyFinance - Gestão & Coparentalidade</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Plus Jakarta Sans', sans-serif;
         background: radial-gradient(circle at top right, #fdf2f8, #f8fafc, #eff6ff);
         background-attachment: fixed;
-        color: #1e293b;
-        margin: 0;
+        transition: background 0.5s ease, color 0.3s ease;
+      }
+      html.dark body {
+        background: radial-gradient(circle at top right, #1e1b4b, #0f172a, #020617);
+        color: #f8fafc;
       }
       .glass {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.4);
+        transition: background 0.3s ease, border 0.3s ease;
+      }
+      html.dark .glass {
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
       ::-webkit-scrollbar {
         width: 6px;
@@ -27,6 +47,9 @@
       ::-webkit-scrollbar-thumb {
         background: #cbd5e1;
         border-radius: 10px;
+      }
+      html.dark ::-webkit-scrollbar-thumb {
+        background: #334155;
       }
     </style>
     <script type="importmap">
@@ -42,9 +65,8 @@
     }
     </script>
   </head>
-  <body class="antialiased">
+  <body class="antialiased min-h-screen">
     <div id="root"></div>
-    <!-- O script abaixo é essencial para iniciar a aplicação -->
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>
