@@ -2,25 +2,22 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
 export class GeminiService {
-  private static getAI() {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-  }
-
   static async askFinanceAssistant(prompt: string, context: string): Promise<string> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    // A chave é obtida automaticamente do ambiente de execução
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Dados atuais do usuário: ${context}\n\nPergunta: ${prompt}`,
       config: {
         systemInstruction: "Você é um consultor financeiro pessoal de elite especializado em coparentalidade (Módulo Minha Filha). Suas respostas devem ser em Português do Brasil, neutras, empáticas e focadas em organização financeira e bem-estar da criança. Use tom profissional e amigável.",
       }
     });
-    return response.text || "Desculpe, não consegui processar sua pergunta.";
+    return response.text ?? "Desculpe, não consegui processar sua pergunta.";
   }
 
   static async analyzeReceipt(base64Image: string): Promise<any> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [
@@ -41,12 +38,12 @@ export class GeminiService {
         }
       }
     });
-    return JSON.parse(response.text || '{}');
+    return JSON.parse(response.text ?? '{}');
   }
 
   static async transcribeAudio(base64Audio: string): Promise<string> {
-    const ai = this.getAI();
-    const response = await ai.models.generateContent({
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
         parts: [
@@ -55,6 +52,6 @@ export class GeminiService {
         ]
       }
     });
-    return response.text || "";
+    return response.text ?? "";
   }
 }
