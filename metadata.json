@@ -1,0 +1,8 @@
+{
+  "name": "FamilyFinance & Coparenting",
+  "description": "A comprehensive personal finance manager integrated with a specialized coparenting module for managing child support, shared expenses, and visitation schedules.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
