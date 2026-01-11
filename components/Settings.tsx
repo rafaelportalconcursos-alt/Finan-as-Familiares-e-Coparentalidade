@@ -144,6 +144,15 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                   className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 dark:text-white"
                 />
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail / Gmail</label>
+                <input 
+                  type="email" 
+                  value={user.email} 
+                  onChange={(e) => updateProfile({ email: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
             </div>
           </div>
         )}
