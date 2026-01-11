@@ -155,16 +155,59 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                   className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pediatra</label>
+                <input 
+                  type="text" 
+                  value={child.pediatrician || ''} 
+                  placeholder="Nome e contato do pediatra"
+                  onChange={(e) => updateChild({ pediatrician: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Escola</label>
+                <input 
+                  type="text" 
+                  value={child.school || ''} 
+                  placeholder="Nome da escola"
+                  onChange={(e) => updateChild({ school: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo Sanguíneo</label>
+                <input 
+                  type="text" 
+                  value={child.bloodType || ''} 
+                  placeholder="Ex: O positivo (O+)"
+                  onChange={(e) => updateChild({ bloodType: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alergias</label>
+                <input 
+                  type="text" 
+                  value={child.allergies || ''} 
+                  placeholder="Ex: Amendoim, Lactose, Nenhuma"
+                  onChange={(e) => updateChild({ allergies: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
             </div>
+            
             <div className="p-8 bg-rose-50 dark:bg-rose-900/10 rounded-[2rem] border border-rose-100 dark:border-rose-800/30">
                <p className="text-xs text-rose-600 dark:text-rose-400 font-medium leading-relaxed">
-                 O nome e data de nascimento são usados para personalizar o módulo "Minha Filha" e calcular lembretes automáticos de aniversário e saúde.
+                 As informações preenchidas aqui serão exibidas automaticamente no card de resumo da Alice para acesso rápido.
                </p>
             </div>
+            <button className="px-8 py-4 bg-rose-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
+              Salvar Dados da Criança
+            </button>
           </div>
         )}
 
-        {/* Fix: changed activeTab check to activeSubTab check to resolve reference error */}
         {activeSubTab === 'preferences' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
              <header>

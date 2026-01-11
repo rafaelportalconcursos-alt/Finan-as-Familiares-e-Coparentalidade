@@ -181,10 +181,10 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
                <div className="glass p-8 rounded-[2.5rem] shadow-lg border-white/40 dark:border-slate-800">
                   <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 tracking-tight">Saúde e Educação</h3>
                   <div className="space-y-4">
-                     <InfoRow label="Pediatra" value="Dra. Helena - (11) 91234-5678" />
-                     <InfoRow label="Escola" value="Colégio Novo Horizonte - Maternal II" />
-                     <InfoRow label="Tipo Sanguíneo" value="O positivo (O+)" />
-                     <InfoRow label="Alergias" value="Nenhuma conhecida" />
+                     <InfoRow label="Pediatra" value={child.pediatrician || 'Não informado'} />
+                     <InfoRow label="Escola" value={child.school || 'Não informado'} />
+                     <InfoRow label="Tipo Sanguíneo" value={child.bloodType || 'Não informado'} />
+                     <InfoRow label="Alergias" value={child.allergies || 'Não informado'} />
                   </div>
                </div>
             </div>

@@ -57,6 +57,10 @@ export interface ChildData {
   name: string;
   birthDate: string;
   photo?: string;
+  pediatrician?: string;
+  school?: string;
+  bloodType?: string;
+  allergies?: string;
 }
 
 export interface NotificationSettings {

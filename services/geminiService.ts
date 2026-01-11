@@ -2,17 +2,35 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
 export class GeminiService {
-  static async askFinanceAssistant(prompt: string, context: string): Promise<string> {
-    // A chave é obtida automaticamente do ambiente de execução
+  /**
+   * Consulta o assistente financeiro enviando o histórico completo para contexto.
+   */
+  static async askFinanceAssistant(prompt: string, context: string, history: { role: 'user' | 'assistant', content: string }[]): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Converte o histórico local para o formato de partes do Gemini
+    const contents = history.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
+
+    // Adiciona a pergunta atual
+    contents.push({
+      role: 'user',
+      parts: [{ text: `CONTEXTO ATUAL DO SISTEMA: ${context}\n\nPERGUNTA DO USUÁRIO: ${prompt}` }]
+    });
+
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `Dados atuais do usuário: ${context}\n\nPergunta: ${prompt}`,
+      contents: contents,
       config: {
-        systemInstruction: "Você é um consultor financeiro pessoal de elite especializado em coparentalidade (Módulo Minha Filha). Suas respostas devem ser em Português do Brasil, neutras, empáticas e focadas em organização financeira e bem-estar da criança. Use tom profissional e amigável.",
+        systemInstruction: "Você é um consultor financeiro de elite especializado em coparentalidade. Ajude o usuário a gerenciar gastos com os filhos, prazos de pensão e logística de visitas. Seja empático, técnico quando necessário e sempre focado no melhor interesse da criança. Responda em Português do Brasil.",
+        temperature: 0.7,
+        topP: 0.95,
       }
     });
-    return response.text ?? "Desculpe, não consegui processar sua pergunta.";
+
+    return response.text ?? "Desculpe, tive um problema ao processar sua solicitação.";
   }
 
   static async analyzeReceipt(base64Image: string): Promise<any> {
@@ -22,7 +40,7 @@ export class GeminiService {
       contents: {
         parts: [
           { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-          { text: "Extraia o valor total, data e descrição deste recibo de despesa. Responda estritamente em JSON no formato solicitado." }
+          { text: "Extraia o valor total, data e descrição deste recibo. Se for uma despesa compartilhada com filho, identifique." }
         ]
       },
       config: {
@@ -32,27 +50,13 @@ export class GeminiService {
           properties: {
             description: { type: Type.STRING },
             amount: { type: Type.NUMBER },
-            date: { type: Type.STRING }
+            date: { type: Type.STRING },
+            isChildRelated: { type: Type.BOOLEAN }
           },
           required: ["description", "amount", "date"]
         }
       }
     });
     return JSON.parse(response.text ?? '{}');
-  }
-
-  static async transcribeAudio(base64Audio: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      // Following guidelines for native audio tasks.
-      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-      contents: {
-        parts: [
-          { inlineData: { mimeType: 'audio/pcm;rate=16000', data: base64Audio } },
-          { text: "Transcreva este áudio para texto em português. Foque em notas de saúde ou logística escolar." }
-        ]
-      }
-    });
-    return response.text ?? "";
   }
 }
