@@ -39,7 +39,6 @@ const App: React.FC = () => {
           icon: '/favicon.ico' 
         });
       } catch (e) {
-        // Fallback para navegadores que exigem Service Workers para notificações
         console.info("Notificação de sistema silenciosa: " + message);
       }
     }
@@ -177,12 +176,20 @@ const App: React.FC = () => {
 
     try {
       const balance = state.transactions.reduce((acc, t) => acc + (t.type === TransactionType.INCOME ? t.amount : -t.amount), 0);
-      const context = `Usuário: ${state.user.name}. Saldo: R$ ${balance}. Pensão: R$ ${state.monthlyPensionAmount}. Filha: ${state.child.name}.`;
+      const context = `Usuário: ${state.user.name}. Saldo Atual: R$ ${balance}. Valor Pensão Alice: R$ ${state.monthlyPensionAmount}. Status Pensão: ${state.childSupportStatus}. Filha: ${state.child.name} (${state.child.birthDate}). Escola: ${state.child.school}.`;
+      
       const response = await GeminiService.askFinanceAssistant(chatInput, context, currentHistory);
+      
       setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: response }]);
-      showNotification("Nova mensagem da IA", "info");
+      showNotification("Nova mensagem recebida", "info");
     } catch (err) {
-      setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: "Erro na conexão com o assistente." }]);
+      console.error("Erro capturado no Chat:", err);
+      setChatMessages(prev => [...prev, { 
+        id: crypto.randomUUID(), 
+        role: 'assistant', 
+        content: "Ops! Tive um problema técnico para acessar a IA. Verifique sua conexão ou tente novamente em alguns segundos." 
+      }]);
+      showNotification("Falha na IA", "error");
     } finally {
       setIsLoading(false);
     }
@@ -417,7 +424,7 @@ const App: React.FC = () => {
               </div>
               <form onSubmit={handleChatSubmit} className="p-10 border-t border-slate-100 dark:border-slate-800 bg-white/10 dark:bg-slate-900/10 flex gap-4">
                 <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Digite sua dúvida financeira..." className="flex-1 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-5 rounded-[2rem] outline-none focus:border-indigo-500 text-slate-800 dark:text-white font-medium shadow-inner" />
-                <button type="submit" className="p-6 bg-indigo-600 text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition">
+                <button type="submit" disabled={isLoading} className={`p-6 bg-indigo-600 text-white rounded-full shadow-lg hover:scale-105 active:scale-95 transition ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                 </button>
               </form>
