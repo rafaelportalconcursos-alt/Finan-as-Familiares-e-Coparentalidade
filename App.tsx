@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AppState, Transaction, Visitation, TransactionType, Category } from './types';
+import { AppState, Transaction, Visitation, TransactionType, Category, Goal, ChildData } from './types';
 import { INITIAL_STATE } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { CoparentingModule } from './components/CoparentingModule';
@@ -32,12 +32,12 @@ ALTER TABLE user_state ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHECK (true);
   `.trim();
 
-  // Função auxiliar para garantir que o estado tenha todas as propriedades necessárias (Deep Merge simples)
   const migrateState = (data: any): AppState => {
     return {
       ...INITIAL_STATE,
       ...data,
       user: { ...INITIAL_STATE.user, ...(data.user || {}) },
+      child: { ...INITIAL_STATE.child, ...(data.child || {}) },
       settings: { 
         ...INITIAL_STATE.settings, 
         ...(data.settings || {}),
@@ -91,9 +91,7 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
           try {
             const parsed = JSON.parse(saved);
             setState(migrateState(parsed));
-          } catch(e) {
-            console.error("Erro ao ler localStorage:", e);
-          }
+          } catch(e) {}
         }
       }
     }
@@ -158,6 +156,14 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
     }));
   };
 
+  const addGoal = (g: Omit<Goal, 'id'>) => {
+    const newGoal = { ...g, id: Math.random().toString(36).substr(2, 9) };
+    setState(prev => ({
+      ...prev,
+      goals: [...prev.goals, newGoal]
+    }));
+  };
+
   const deleteTransaction = (id: string) => {
     if (confirm("Deseja realmente excluir este lançamento?")) {
       setState(prev => ({
@@ -205,7 +211,7 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
 
     try {
       const balance = state.transactions.reduce((acc, t) => acc + (t.type === TransactionType.INCOME ? t.amount : -t.amount), 0);
-      const context = `Usuário: ${state.user.name}. Saldo: R$ ${balance.toFixed(2)}. Pensão: R$ ${state.monthlyPensionAmount.toFixed(2)}. Status: ${state.childSupportStatus}. Visitas registradas: ${state.visitations.length}.`;
+      const context = `Usuário: ${state.user.name}. Saldo: R$ ${balance.toFixed(2)}. Pensão: R$ ${state.monthlyPensionAmount.toFixed(2)}. Status: ${state.childSupportStatus}. Filha: ${state.child.name}.`;
       const responseText = await GeminiService.askFinanceAssistant(chatInput, context);
       
       const assistantMsgId = Math.random().toString(36).substr(2, 9);
@@ -238,6 +244,10 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
 
   const updatePartialState = (newData: Partial<AppState>) => {
     setState(prev => ({ ...prev, ...newData }));
+  };
+
+  const updateChild = (data: Partial<ChildData>) => {
+    setState(prev => ({ ...prev, child: { ...prev.child, ...data } }));
   };
 
   const nextVisit = state.visitations
@@ -289,7 +299,7 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
               <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 dark:text-indigo-400">
                  {activeTab === 'dashboard' && 'Panorama Geral'}
                  {activeTab === 'finance' && 'Fluxo Econômico'}
-                 {activeTab === 'coparenting' && 'Centro de Coparentalidade'}
+                 {activeTab === 'coparenting' && 'Minha Filha'}
                  {activeTab === 'ai' && 'Assistência Inteligente'}
                  {activeTab === 'settings' && 'Preferências do Sistema'}
               </h2>
@@ -311,7 +321,16 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
         </header>
 
         {activeTab === 'dashboard' && (
-          <Dashboard transactions={state.transactions} goals={state.goals} pensionStatus={state.childSupportStatus} nextVisit={nextVisit} onDeleteGoal={deleteGoal} />
+          <Dashboard 
+            transactions={state.transactions} 
+            goals={state.goals} 
+            pensionStatus={state.childSupportStatus} 
+            nextVisit={nextVisit} 
+            onDeleteGoal={deleteGoal}
+            onAddGoal={addGoal}
+            onAddTransaction={addTransaction}
+            spendingLimit={state.settings?.spendingLimit || 0}
+          />
         )}
 
         {activeTab === 'finance' && (
@@ -322,7 +341,7 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
                 <div className="flex flex-col gap-2"><label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase ml-1">Descrição</label><input type="text" placeholder="Ex: Mercado" className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-900/20 outline-none font-bold text-slate-800 dark:text-white transition-all" id="desc" /></div>
                 <div className="flex flex-col gap-2"><label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase ml-1">Valor</label><input type="number" placeholder="R$" className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-900/20 outline-none font-bold text-slate-800 dark:text-white transition-all" id="val" /></div>
                 <div className="flex flex-col gap-2"><label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase ml-1">Categoria</label><select className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-50 dark:focus:ring-indigo-900/20 outline-none font-bold text-slate-600 dark:text-slate-300 appearance-none transition-all" id="cat">{Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                <button onClick={() => { const descI = document.getElementById('desc') as HTMLInputElement; const valI = document.getElementById('val') as HTMLInputElement; const catS = document.getElementById('cat') as HTMLSelectElement; if (descI.value && valI.value) { addTransaction({ date: new Date().toISOString().split('T')[0], description: descI.value, amount: parseFloat(valI.value), type: TransactionType.EXPENSE, category: catS.value as Category, isCoparenting: [Category.PENSION, Category.EDUCATION, Category.HEALTH].includes(catS.value as Category) }); descI.value = ''; valI.value = ''; } }} className="bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-indigo-700 transition active:scale-95 shadow-xl shadow-indigo-200 dark:shadow-none mt-auto py-5">Registrar</button>
+                <button onClick={() => { const descI = document.getElementById('desc') as HTMLInputElement; const valI = document.getElementById('val') as HTMLInputElement; const catS = document.getElementById('cat') as HTMLSelectElement; if (descI.value && valI.value) { addTransaction({ date: new Date().toLocaleDateString('en-CA'), description: descI.value, amount: parseFloat(valI.value), type: TransactionType.EXPENSE, category: catS.value as Category, isCoparenting: [Category.PENSION, Category.EDUCATION, Category.HEALTH].includes(catS.value as Category) }); descI.value = ''; valI.value = ''; } }} className="bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-indigo-700 transition active:scale-95 shadow-xl shadow-indigo-200 dark:shadow-none mt-auto py-5">Registrar</button>
               </div>
             </div>
 
@@ -339,17 +358,21 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                    {state.transactions.map(t => (
-                      <tr key={t.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group">
-                        <td className="p-8 text-sm text-slate-400 dark:text-slate-500 font-bold">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
-                        <td className="p-8 font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{t.description}</td>
-                        <td className="p-8"><span className="px-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 shadow-sm">{t.category}</span></td>
-                        <td className={`p-8 font-black text-right text-lg ${t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>{t.type === TransactionType.INCOME ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                        <td className="p-8 text-center">
-                           <button onClick={() => deleteTransaction(t.id)} className="text-slate-300 hover:text-rose-500 transition-all p-2 hover:scale-125" title="Excluir"><DeleteIcon /></button>
-                        </td>
-                      </tr>
-                    ))}
+                    {state.transactions.map(t => {
+                      const dateParts = t.date.split('-');
+                      const displayDate = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : t.date;
+                      return (
+                        <tr key={t.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group">
+                          <td className="p-8 text-sm text-slate-400 dark:text-slate-500 font-bold">{displayDate}</td>
+                          <td className="p-8 font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{t.description}</td>
+                          <td className="p-8"><span className="px-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 shadow-sm">{t.category}</span></td>
+                          <td className={`p-8 font-black text-right text-lg ${t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>{t.type === TransactionType.INCOME ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                          <td className="p-8 text-center">
+                             <button onClick={() => deleteTransaction(t.id)} className="text-slate-300 hover:text-rose-500 transition-all p-2 hover:scale-125" title="Excluir"><DeleteIcon /></button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -358,7 +381,18 @@ CREATE POLICY "Allow public access" ON user_state FOR ALL USING (true) WITH CHEC
         )}
 
         {activeTab === 'coparenting' && (
-          <CoparentingModule transactions={state.transactions} visitations={state.visitations} onAddTransaction={addTransaction} onDeleteTransaction={deleteTransaction} onAddVisitation={addVisitation} onDeleteVisitation={deleteVisitation} pensionAmount={state.monthlyPensionAmount} />
+          <CoparentingModule 
+            child={state.child} 
+            transactions={state.transactions} 
+            visitations={state.visitations} 
+            onAddTransaction={addTransaction} 
+            onDeleteTransaction={deleteTransaction} 
+            onAddVisitation={addVisitation} 
+            onDeleteVisitation={deleteVisitation} 
+            onUpdateChild={updateChild}
+            pensionAmount={state.monthlyPensionAmount} 
+            pensionStatus={state.childSupportStatus} 
+          />
         )}
 
         {activeTab === 'ai' && (
@@ -440,11 +474,11 @@ const ChildIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="22" heigh
 const AiIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
 const BellIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
+const CloudIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.1-3.9-4.5-.5-3.1-3.1-5.5-6.1-5.5-2.2 0-4.2 1.2-5.3 3-3 0-5.5 2.5-5.5 5.5S3.7 18.5 6.5 18.5H17.5"/></svg>;
 const SendIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
 const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>;
 const MoonIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
-const CloudIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c.7 0 1.3-.2 1.8-.7s.7-1.1.7-1.8c0-1.3-1-2.4-2.2-2.5a4.5 4.5 0 0 0-8.8 0c-1.3.1-2.2 1.2-2.2 2.5 0 .7.2 1.3.7 1.8s1.1.7 1.8.7h10.5z"/></svg>;
-const DeleteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
-const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const TrashIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+const DeleteIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 
 export default App;

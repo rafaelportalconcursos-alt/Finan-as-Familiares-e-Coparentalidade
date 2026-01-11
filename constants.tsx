@@ -8,6 +8,11 @@ export const INITIAL_STATE: AppState = {
     phone: '(11) 98765-4321',
     avatar: ''
   },
+  child: {
+    name: 'Alice',
+    birthDate: '2020-05-15',
+    photo: ''
+  },
   transactions: [
     {
       id: '1',
@@ -34,7 +39,10 @@ export const INITIAL_STATE: AppState = {
       id: 'v1',
       date: new Date().toISOString().split('T')[0],
       status: 'Realizado',
-      notes: 'Final de semana normal. Tomou vitamina C às 08:00.'
+      notes: 'Final de semana normal. Tomou vitamina C às 08:00.',
+      pickupTime: '18:00',
+      returnTime: '18:00',
+      location: 'Casa da Mãe'
     }
   ],
   goals: [
@@ -47,6 +55,7 @@ export const INITIAL_STATE: AppState = {
   ],
   childSupportStatus: 'Pago',
   monthlyPensionAmount: 500,
+  pensionDueDate: 10,
   settings: {
     language: 'pt-BR',
     currency: 'BRL',

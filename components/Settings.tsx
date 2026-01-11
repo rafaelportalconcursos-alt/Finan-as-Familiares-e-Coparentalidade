@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppState, UserProfile, NotificationSettings } from '../types';
+import { AppState, UserProfile, NotificationSettings, ChildData } from '../types';
 
 interface SettingsProps {
   state: AppState;
@@ -10,17 +10,22 @@ interface SettingsProps {
   syncStatus: string;
 }
 
-type SettingsTab = 'profile' | 'preferences' | 'notifications' | 'security' | 'finance' | 'privacy' | 'support';
+type SettingsTab = 'profile' | 'child' | 'preferences' | 'notifications' | 'security' | 'finance' | 'privacy' | 'support';
 
 export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onResetData, onShowSql, syncStatus }) => {
   const [activeSubTab, setActiveSubTab] = useState<SettingsTab>('profile');
 
   // Segurança para evitar crash se o estado vier incompleto
   const user = state.user || { name: 'Visitante', email: '', phone: '' };
+  const child = state.child || { name: 'Criança', birthDate: '2020-01-01' };
   const settings = state.settings || { theme: 'light', currency: 'BRL', dateFormat: 'DD/MM/YYYY', notifications: { push: true, email: true, whatsapp: false, alerts: { lowBalance: true, billDue: true, newIncome: true } } };
 
   const updateProfile = (data: Partial<UserProfile>) => {
     onUpdateState({ user: { ...user, ...data } });
+  };
+
+  const updateChild = (data: Partial<ChildData>) => {
+    onUpdateState({ child: { ...child, ...data } });
   };
 
   const updateNotifications = (data: Partial<NotificationSettings>) => {
@@ -55,6 +60,7 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
       {/* Settings Navigation */}
       <div className="w-full lg:w-72 space-y-2">
         <SidebarItem id="profile" label="Perfil" icon={<UserIcon />} />
+        <SidebarItem id="child" label="Criança" icon={<HeartIcon />} />
         <SidebarItem id="preferences" label="Preferências" icon={<PrefIcon />} />
         <SidebarItem id="notifications" label="Notificações" icon={<BellIcon />} />
         <SidebarItem id="security" label="Segurança" icon={<LockIcon />} />
@@ -123,6 +129,42 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
           </div>
         )}
 
+        {activeSubTab === 'child' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+            <header>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Dados da Criança</h3>
+              <p className="text-slate-400 text-sm font-medium mt-1">Configure as informações de sua filha</p>
+            </header>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Criança</label>
+                <input 
+                  type="text" 
+                  value={child.name} 
+                  onChange={(e) => updateChild({ name: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Nascimento</label>
+                <input 
+                  type="date" 
+                  value={child.birthDate} 
+                  onChange={(e) => updateChild({ birthDate: e.target.value })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="p-8 bg-rose-50 dark:bg-rose-900/10 rounded-[2rem] border border-rose-100 dark:border-rose-800/30">
+               <p className="text-xs text-rose-600 dark:text-rose-400 font-medium leading-relaxed">
+                 O nome e data de nascimento são usados para personalizar o módulo "Minha Filha" e calcular lembretes automáticos de aniversário e saúde.
+               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Fix: changed activeTab check to activeSubTab check to resolve reference error */}
         {activeSubTab === 'preferences' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
              <header>
@@ -354,6 +396,7 @@ const ToggleRow = ({ label, active, onToggle }: { label: string, active: boolean
 );
 
 const UserIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const HeartIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const BellIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
 const LockIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
 const ShieldIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;

@@ -44,7 +44,8 @@ export class GeminiService {
   static async transcribeAudio(base64Audio: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Following guidelines for native audio tasks.
+      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       contents: {
         parts: [
           { inlineData: { mimeType: 'audio/pcm;rate=16000', data: base64Audio } },

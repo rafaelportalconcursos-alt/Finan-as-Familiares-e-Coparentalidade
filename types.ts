@@ -25,13 +25,18 @@ export interface Transaction {
   category: Category;
   isCoparenting: boolean;
   sharedPercentage?: number;
+  attachment?: string; // URL ou base64 do comprovante
 }
 
 export interface Visitation {
   id: string;
   date: string;
   status: 'Planejado' | 'Realizado' | 'Cancelado';
+  pickupTime?: string;
+  returnTime?: string;
+  location?: string;
   notes: string;
+  confirmed?: boolean;
 }
 
 export interface Goal {
@@ -48,6 +53,12 @@ export interface UserProfile {
   avatar?: string;
 }
 
+export interface ChildData {
+  name: string;
+  birthDate: string;
+  photo?: string;
+}
+
 export interface NotificationSettings {
   push: boolean;
   email: boolean;
@@ -61,11 +72,13 @@ export interface NotificationSettings {
 
 export interface AppState {
   user: UserProfile;
+  child: ChildData;
   transactions: Transaction[];
   visitations: Visitation[];
   goals: Goal[];
-  childSupportStatus: 'Pago' | 'Pendente';
+  childSupportStatus: 'Pago' | 'Pendente' | 'Atrasado';
   monthlyPensionAmount: number;
+  pensionDueDate: number; // Dia do mês
   settings: {
     language: string;
     currency: string;
