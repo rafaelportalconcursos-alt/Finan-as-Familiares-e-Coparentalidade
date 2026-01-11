@@ -183,11 +183,11 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* BOTÃO ATUALIZAR (Sincronização Manual) */}
+        {/* BOTÃO ATUALIZAR (Sincronização Manual) - Posicionado mais para cima a pedido do usuário */}
         <button 
           onClick={manualUpdate}
           disabled={isRefreshing}
-          className={`fixed bottom-8 right-8 z-[60] flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl transition-all active:scale-95 group overflow-hidden ${
+          className={`fixed bottom-20 right-8 z-[60] flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl transition-all active:scale-95 group overflow-hidden ${
             isRefreshing 
             ? 'bg-amber-500 text-white w-48' 
             : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105'
