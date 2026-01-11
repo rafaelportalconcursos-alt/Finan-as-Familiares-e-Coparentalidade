@@ -176,7 +176,7 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* FAB MENU - Botão Flutuante de Ações */}
+        {/* FAB MENU - Botão Flutuante de Ações (Corrigido e Melhorado) */}
         <div className="fixed bottom-[110px] md:bottom-10 right-6 z-[100] flex flex-col items-end gap-4">
           {isFabOpen && (
             <div className="flex flex-col items-end gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300">
