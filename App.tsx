@@ -15,7 +15,6 @@ const App: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<{ id: string, role: 'user' | 'assistant', content: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error' | 'setup_required'>('synced');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFabOpen, setIsFabOpen] = useState(false);
   
@@ -63,13 +62,16 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const manualUpdate = async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
+  // Salva Manualmente
+  const handleManualSave = async () => {
     setSyncStatus('saving');
+    setIsRefreshing(true);
     setIsFabOpen(false);
     
     try {
+      // Garante salvamento no localStorage imediatamente
+      localStorage.setItem('family_finance_v3', JSON.stringify(state));
+      
       const { error } = await supabase
         .from('user_state')
         .upsert({ id: 'rafael-user-01', state: state });
@@ -77,12 +79,34 @@ const App: React.FC = () => {
       if (error) throw error;
       
       setSyncStatus('synced');
-      setTimeout(() => setIsRefreshing(false), 1200);
+      setTimeout(() => setIsRefreshing(false), 800);
     } catch (err: any) {
       setSyncStatus('error');
-      setErrorMessage(err.message);
       setIsRefreshing(false);
-      alert("Erro ao sincronizar: " + err.message);
+      alert("Erro ao salvar: " + err.message);
+    }
+  };
+
+  // Salva e depois Recarrega a Página
+  const handleSaveAndRefresh = async () => {
+    setSyncStatus('saving');
+    setIsRefreshing(true);
+    setIsFabOpen(false);
+    
+    try {
+      // 1. Salva localmente (instantâneo)
+      localStorage.setItem('family_finance_v3', JSON.stringify(state));
+      
+      // 2. Tenta salvar no banco de dados
+      await supabase
+        .from('user_state')
+        .upsert({ id: 'rafael-user-01', state: state });
+      
+      // 3. Recarrega a página
+      window.location.reload();
+    } catch (err) {
+      // Se falhar o banco, recarrega mesmo assim pois o localStorage salvou o progresso
+      window.location.reload();
     }
   };
 
@@ -100,10 +124,9 @@ const App: React.FC = () => {
       if (syncStatus === 'setup_required' || isRefreshing) return;
       setSyncStatus('saving');
       try {
-        const { error } = await supabase
+        await supabase
           .from('user_state')
           .upsert({ id: 'rafael-user-01', state: state });
-        if (error) throw error;
         setSyncStatus('synced');
       } catch (err: any) {
         setSyncStatus('error');
@@ -167,21 +190,14 @@ const App: React.FC = () => {
             <NavIcon active={activeTab === 'ajuda'} onClick={() => setActiveTab('ajuda')} icon={<AiIcon />} title="IA Assistente" />
             <NavIcon active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes')} icon={<SettingsIcon />} title="Configurações" />
           </nav>
-          <div className="mt-auto w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xs overflow-hidden shadow-lg border border-slate-700">
-            {state.user.avatar ? (
-              <img src={state.user.avatar} alt="User" className="w-full h-full object-cover" />
-            ) : (
-              state.user.name.charAt(0)
-            )}
-          </div>
         </aside>
 
-        {/* FAB MENU - Botão Flutuante de Ações (Corrigido e Melhorado) */}
+        {/* FAB MENU - Botão Flutuante de Ações */}
         <div className="fixed bottom-[110px] md:bottom-10 right-6 z-[100] flex flex-col items-end gap-4">
           {isFabOpen && (
             <div className="flex flex-col items-end gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300">
               <button 
-                onClick={() => window.location.reload()}
+                onClick={handleSaveAndRefresh}
                 className="flex items-center gap-4 px-6 py-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all group"
               >
                 <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">Atualizar Página</span>
@@ -191,7 +207,7 @@ const App: React.FC = () => {
               </button>
 
               <button 
-                onClick={manualUpdate}
+                onClick={handleManualSave}
                 disabled={isRefreshing}
                 className="flex items-center gap-4 px-6 py-4 bg-indigo-600 text-white rounded-[2rem] shadow-2xl hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all group"
               >
