@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error' | 'setup_required'>('synced');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFabOpen, setIsFabOpen] = useState(false);
   
   const isInitialMount = useRef(true);
 
@@ -66,6 +67,7 @@ const App: React.FC = () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     setSyncStatus('saving');
+    setIsFabOpen(false);
     
     try {
       const { error } = await supabase
@@ -80,7 +82,7 @@ const App: React.FC = () => {
       setSyncStatus('error');
       setErrorMessage(err.message);
       setIsRefreshing(false);
-      alert("Erro ao sincronizar com a nuvem: " + err.message);
+      alert("Erro ao sincronizar: " + err.message);
     }
   };
 
@@ -159,11 +161,11 @@ const App: React.FC = () => {
         <aside className="fixed left-6 top-6 bottom-6 w-20 bg-slate-900 rounded-[2.5rem] hidden md:flex flex-col items-center py-10 z-50 border border-slate-800 shadow-2xl">
           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 shadow-lg">FF</div>
           <nav className="flex-1 flex flex-col gap-10">
-            <NavIcon active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} title="Painel" />
-            <NavIcon active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<FinanceIcon />} title="Financeiro" />
-            <NavIcon active={activeTab === 'alice'} onClick={() => setActiveTab('alice')} icon={<ChildIcon />} title="Alice" />
-            <NavIcon active={activeTab === 'ajuda'} onClick={() => setActiveTab('ajuda')} icon={<AiIcon />} title="IA Assistente" />
-            <NavIcon active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes')} icon={<SettingsIcon />} title="Configurações" />
+            <NavIcon active={activeTab === 'painel'} onClick={() => setActiveTab('painel'} icon={<DashboardIcon />} title="Painel" />
+            <NavIcon active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro'} icon={<FinanceIcon />} title="Financeiro" />
+            <NavIcon active={activeTab === 'alice'} onClick={() => setActiveTab('alice'} icon={<ChildIcon />} title="Alice" />
+            <NavIcon active={activeTab === 'ajuda'} onClick={() => setActiveTab('ajuda'} icon={<AiIcon />} title="IA Assistente" />
+            <NavIcon active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes'} icon={<SettingsIcon />} title="Configurações" />
           </nav>
           <div className="mt-auto w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xs overflow-hidden shadow-lg border border-slate-700">
             {state.user.avatar ? (
@@ -174,24 +176,45 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* BOTÃO ATUALIZAR (Sincronização Manual) - Centralizado, pequeno e mais baixo conforme solicitado */}
-        <button 
-          onClick={manualUpdate}
-          disabled={isRefreshing}
-          className={`fixed bottom-[105px] left-1/2 -translate-x-1/2 z-[60] flex items-center justify-center gap-2 px-6 py-3 rounded-full shadow-xl transition-all active:scale-95 group overflow-hidden w-[200px] md:w-auto md:left-auto md:right-8 md:translate-x-0 ${
-            isRefreshing 
-            ? 'bg-amber-500 text-white' 
-            : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105'
-          }`}
-        >
-          <div className={`shrink-0 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`}>
-            <RefreshIcon size={18} />
-          </div>
-          <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
-            {isRefreshing ? 'Salvando...' : 'Salvar Alterações'}
-          </span>
-          {isRefreshing && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>}
-        </button>
+        {/* FAB MENU - Botão Flutuante de Ações */}
+        <div className="fixed bottom-28 md:bottom-10 right-6 z-[100] flex flex-col items-end gap-3">
+          {isFabOpen && (
+            <div className="flex flex-col items-end gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300">
+              <button 
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-3 px-5 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-[1.5rem] shadow-xl border border-slate-100 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all group"
+              >
+                <span className="text-[10px] font-black uppercase tracking-widest">Atualizar Página</span>
+                <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-xl group-hover:rotate-12 transition-transform">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                </div>
+              </button>
+
+              <button 
+                onClick={manualUpdate}
+                disabled={isRefreshing}
+                className="flex items-center gap-3 px-5 py-3 bg-indigo-600 text-white rounded-[1.5rem] shadow-xl hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all group"
+              >
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {isRefreshing ? 'Salvando...' : 'Salvar Alteração'}
+                </span>
+                <div className={`p-2 bg-white/20 rounded-xl ${isRefreshing ? 'animate-spin' : ''}`}>
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                </div>
+              </button>
+            </div>
+          )}
+          
+          <button 
+            onClick={() => setIsFabOpen(!isFabOpen)}
+            className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-500 ${isFabOpen ? 'bg-rose-500 rotate-45 scale-90' : 'bg-indigo-600 hover:scale-110 hover:shadow-indigo-500/40'}`}
+          >
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
 
         <main className="max-w-7xl mx-auto px-6 md:px-16 pt-12 pb-12 w-full">
           <header className="mb-12 flex justify-between items-center">
