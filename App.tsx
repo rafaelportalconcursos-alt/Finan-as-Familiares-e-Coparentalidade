@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error' | 'setup_required'>('synced');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const isInitialMount = useRef(true);
 
@@ -37,11 +38,12 @@ const App: React.FC = () => {
   };
 
   const loadData = useCallback(async () => {
+    setIsRefreshing(true);
     try {
       const { data, error } = await supabase
         .from('user_state')
         .select('state')
-        .eq('id', 'rafael-user-01') // Atualizado para Rafael
+        .eq('id', 'rafael-user-01')
         .single();
 
       if (error) {
@@ -50,10 +52,12 @@ const App: React.FC = () => {
       } else if (data?.state) {
         setState(migrateState(data.state));
       }
+      setSyncStatus('synced');
     } catch (err: any) {
       setSyncStatus('error');
       setErrorMessage(err.message);
     } finally {
+      setIsRefreshing(false);
       const saved = localStorage.getItem('family_finance_v3');
       if (saved && isInitialMount.current) {
         setState(prev => migrateState(JSON.parse(saved)));
@@ -145,8 +149,26 @@ const App: React.FC = () => {
             <NavIcon active={activeTab === 'ajuda'} onClick={() => setActiveTab('ajuda')} icon={<AiIcon />} title="IA Assistente" />
             <NavIcon active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes')} icon={<SettingsIcon />} title="Configurações" />
           </nav>
-          <div className="mt-auto w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xs">{state.user.name.charAt(0)}</div>
+          <div className="mt-auto w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-xs overflow-hidden shadow-lg border border-slate-700">
+            {state.user.avatar ? (
+              <img src={state.user.avatar} alt="User" className="w-full h-full object-cover" />
+            ) : (
+              state.user.name.charAt(0)
+            )}
+          </div>
         </aside>
+
+        {/* Botão Flutuante de Atualização */}
+        <button 
+          onClick={loadData}
+          disabled={isRefreshing}
+          title="Atualizar dados"
+          className={`fixed bottom-8 right-8 z-[60] w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all group ${isRefreshing ? 'opacity-70' : ''}`}
+        >
+          <div className={`${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
+            <RefreshIcon />
+          </div>
+        </button>
 
         <main className="max-w-7xl mx-auto px-6 md:px-16 pt-12 pb-12 w-full">
           <header className="mb-12 flex justify-between items-center">
@@ -311,5 +333,6 @@ const FinanceIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="
 const ChildIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const AiIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>;
 const SettingsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>;
+const RefreshIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>;
 
 export default App;

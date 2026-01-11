@@ -104,10 +104,14 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
             {/* Card Principal da Criança */}
             <div className="glass p-10 rounded-[3rem] shadow-xl border-white/40 dark:border-slate-800 flex flex-col md:flex-row items-center gap-10 bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-900 dark:to-rose-900/5">
               <div className="relative">
-                <div className="w-32 h-32 bg-rose-100 dark:bg-rose-900/40 rounded-[2.5rem] flex items-center justify-center text-rose-500 text-4xl font-black shadow-inner border-4 border-white dark:border-slate-800">
-                  {child.name ? child.name[0] : '?'}
+                <div className="w-32 h-32 bg-rose-100 dark:bg-rose-900/40 rounded-[2.5rem] flex items-center justify-center text-rose-500 text-4xl font-black shadow-inner border-4 border-white dark:border-slate-800 overflow-hidden">
+                  {child.photo ? (
+                    <img src={child.photo} alt={child.name} className="w-full h-full object-cover" />
+                  ) : (
+                    child.name ? child.name[0] : '?'
+                  )}
                 </div>
-                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full flex items-center justify-center text-white">
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full flex items-center justify-center text-white shadow-lg">
                   <HeartIcon size={16} />
                 </div>
               </div>

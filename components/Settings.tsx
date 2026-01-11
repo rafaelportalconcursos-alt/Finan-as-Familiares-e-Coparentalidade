@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppState, UserProfile, NotificationSettings, ChildData } from '../types';
 
 interface SettingsProps {
@@ -14,10 +14,11 @@ type SettingsTab = 'profile' | 'child' | 'preferences' | 'notifications' | 'secu
 
 export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onResetData, onShowSql, syncStatus }) => {
   const [activeSubTab, setActiveSubTab] = useState<SettingsTab>('profile');
+  const userFileInputRef = useRef<HTMLInputElement>(null);
+  const childFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Segurança para evitar crash se o estado vier incompleto
-  const user = state.user || { name: 'Visitante', email: '', phone: '' };
-  const child = state.child || { name: 'Criança', birthDate: '2020-01-01' };
+  const user = state.user || { name: 'Visitante', email: '', phone: '', avatar: '' };
+  const child = state.child || { name: 'Criança', birthDate: '2020-01-01', photo: '' };
   const settings = state.settings || { theme: 'light', currency: 'BRL', dateFormat: 'DD/MM/YYYY', notifications: { push: true, email: true, whatsapp: false, alerts: { lowBalance: true, billDue: true, newIncome: true } } };
 
   const updateProfile = (data: Partial<UserProfile>) => {
@@ -41,6 +42,22 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
     onUpdateState({ settings: { ...settings, ...data } });
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'user' | 'child') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        if (target === 'user') {
+          updateProfile({ avatar: base64String });
+        } else {
+          updateChild({ photo: base64String });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const SidebarItem = ({ id, label, icon }: { id: SettingsTab, label: string, icon: React.ReactNode }) => (
     <button
       onClick={() => setActiveSubTab(id)}
@@ -57,6 +74,9 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 animate-in slide-in-from-bottom-8 duration-700">
+      <input type="file" ref={userFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'user')} />
+      <input type="file" ref={childFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'child')} />
+
       {/* Settings Navigation */}
       <div className="w-full lg:w-72 space-y-2">
         <SidebarItem id="profile" label="Perfil" icon={<UserIcon />} />
@@ -82,9 +102,16 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
             <div className="flex flex-col md:flex-row items-center gap-8 pb-8 border-b border-slate-100 dark:border-slate-800">
               <div className="relative group">
                 <div className="w-24 h-24 bg-indigo-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-indigo-500 text-3xl font-black overflow-hidden border-4 border-white dark:border-slate-700 shadow-xl">
-                  {user.name?.charAt(0) || 'U'}
+                  {user.avatar ? (
+                    <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    user.name?.charAt(0) || 'U'
+                  )}
                 </div>
-                <button className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95">
+                <button 
+                  onClick={() => userFileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"
+                >
                   <EditIcon size={14} />
                 </button>
               </div>
@@ -123,9 +150,6 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                 />
               </div>
             </div>
-            <button className="px-8 py-4 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
-              Salvar Alterações
-            </button>
           </div>
         )}
 
@@ -135,6 +159,28 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
               <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Dados da Criança</h3>
               <p className="text-slate-400 text-sm font-medium mt-1">Configure as informações de sua filha</p>
             </header>
+
+            <div className="flex flex-col md:flex-row items-center gap-8 pb-8 border-b border-slate-100 dark:border-slate-800">
+              <div className="relative group">
+                <div className="w-24 h-24 bg-rose-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-rose-500 text-3xl font-black overflow-hidden border-4 border-white dark:border-slate-700 shadow-xl">
+                  {child.photo ? (
+                    <img src={child.photo} alt="Foto da Criança" className="w-full h-full object-cover" />
+                  ) : (
+                    child.name?.charAt(0) || 'C'
+                  )}
+                </div>
+                <button 
+                  onClick={() => childFileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 p-2 bg-rose-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"
+                >
+                  <EditIcon size={14} />
+                </button>
+              </div>
+              <div className="flex-1 space-y-1">
+                <h4 className="text-xl font-black text-slate-800 dark:text-white">{child.name}</h4>
+                <p className="text-slate-400 text-sm">Atualize a foto para ver no painel</p>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -196,15 +242,6 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                 />
               </div>
             </div>
-            
-            <div className="p-8 bg-rose-50 dark:bg-rose-900/10 rounded-[2rem] border border-rose-100 dark:border-rose-800/30">
-               <p className="text-xs text-rose-600 dark:text-rose-400 font-medium leading-relaxed">
-                 As informações preenchidas aqui serão exibidas automaticamente no card de resumo da Alice para acesso rápido.
-               </p>
-            </div>
-            <button className="px-8 py-4 bg-rose-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
-              Salvar Dados da Criança
-            </button>
           </div>
         )}
 
@@ -359,17 +396,6 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                   onChange={(e) => updateGeneral({ spendingLimit: parseFloat(e.target.value) || 0 })}
                   className="w-full p-6 bg-indigo-50/50 dark:bg-indigo-900/10 border-none rounded-3xl text-3xl font-black text-indigo-600 focus:ring-4 focus:ring-indigo-500/10"
                 />
-              </div>
-              <div className="p-8 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[2rem] text-center space-y-4">
-                <p className="font-bold text-slate-400 text-sm">Categorias Personalizadas</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                   {['Aluguel', 'Freelance', 'Cursos'].map(tag => (
-                     <span key={tag} className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300">
-                       {tag}
-                     </span>
-                   ))}
-                   <button className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg">+</button>
-                </div>
               </div>
             </div>
           </div>
