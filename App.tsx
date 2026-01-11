@@ -146,6 +146,7 @@ const App: React.FC = () => {
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-500 ${state.settings.theme === 'dark' ? 'dark' : ''}`}>
       <div className="flex-1 pb-24 md:pb-0 md:pl-24 bg-slate-50 dark:bg-black transition-colors">
         
+        {/* Navegação Mobile */}
         <nav className="fixed bottom-6 left-6 right-6 h-20 glass rounded-[2rem] flex md:hidden z-50 px-4 items-center shadow-2xl">
           <MobileTab active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} />
           <MobileTab active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<FinanceIcon />} />
@@ -154,6 +155,7 @@ const App: React.FC = () => {
           <MobileTab active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes')} icon={<SettingsIcon />} />
         </nav>
 
+        {/* Sidebar Desktop */}
         <aside className="fixed left-6 top-6 bottom-6 w-20 bg-slate-900 rounded-[2.5rem] hidden md:flex flex-col items-center py-10 z-50 border border-slate-800 shadow-2xl">
           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 shadow-lg">FF</div>
           <nav className="flex-1 flex flex-col gap-10">
@@ -172,20 +174,21 @@ const App: React.FC = () => {
           </div>
         </aside>
 
+        {/* BOTÃO ATUALIZAR (Sincronização Manual) - Centralizado, pequeno e mais baixo conforme solicitado */}
         <button 
           onClick={manualUpdate}
           disabled={isRefreshing}
-          className={`fixed bottom-52 right-8 z-[60] flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl transition-all active:scale-95 group overflow-hidden ${
+          className={`fixed bottom-[105px] left-1/2 -translate-x-1/2 z-[60] flex items-center justify-center gap-2 px-6 py-3 rounded-full shadow-xl transition-all active:scale-95 group overflow-hidden w-[200px] md:w-auto md:left-auto md:right-8 md:translate-x-0 ${
             isRefreshing 
-            ? 'bg-amber-500 text-white w-48' 
+            ? 'bg-amber-500 text-white' 
             : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105'
           }`}
         >
-          <div className={`${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`}>
-            <RefreshIcon />
+          <div className={`shrink-0 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`}>
+            <RefreshIcon size={18} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-            {isRefreshing ? 'Salvando Tudo...' : 'Salvar Alterações'}
+          <span className="text-[9px] font-black uppercase tracking-widest whitespace-nowrap">
+            {isRefreshing ? 'Salvando...' : 'Salvar Alterações'}
           </span>
           {isRefreshing && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>}
         </button>
@@ -352,6 +355,6 @@ const FinanceIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="
 const ChildIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const AiIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>;
 const SettingsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>;
-const RefreshIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>;
+const RefreshIcon = ({ size = 24 }: { size?: number }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>;
 
 export default App;
