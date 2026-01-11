@@ -38,7 +38,6 @@ const App: React.FC = () => {
   };
 
   const loadData = useCallback(async () => {
-    setIsRefreshing(true);
     try {
       const { data, error } = await supabase
         .from('user_state')
@@ -57,13 +56,32 @@ const App: React.FC = () => {
       setSyncStatus('error');
       setErrorMessage(err.message);
     } finally {
-      setIsRefreshing(false);
       const saved = localStorage.getItem('family_finance_v3');
       if (saved && isInitialMount.current) {
         setState(prev => migrateState(JSON.parse(saved)));
       }
     }
   }, []);
+
+  // Função para salvar manualmente (Atualizar nuvem)
+  const manualUpdate = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setSyncStatus('saving');
+    try {
+      const { error } = await supabase
+        .from('user_state')
+        .upsert({ id: 'rafael-user-01', state: state });
+      if (error) throw error;
+      setSyncStatus('synced');
+      // Feedback visual rápido de sucesso
+      setTimeout(() => setIsRefreshing(false), 800);
+    } catch (err: any) {
+      setSyncStatus('error');
+      setErrorMessage(err.message);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -76,7 +94,7 @@ const App: React.FC = () => {
     localStorage.setItem('family_finance_v3', JSON.stringify(state));
 
     const handler = setTimeout(async () => {
-      if (syncStatus === 'setup_required') return;
+      if (syncStatus === 'setup_required' || isRefreshing) return;
       setSyncStatus('saving');
       try {
         const { error } = await supabase
@@ -88,10 +106,10 @@ const App: React.FC = () => {
         setSyncStatus('error');
         setErrorMessage(err.message);
       }
-    }, 1500);
+    }, 2000);
 
     return () => clearTimeout(handler);
-  }, [state, syncStatus]);
+  }, [state, syncStatus, isRefreshing]);
 
   const addTransaction = (t: Omit<Transaction, 'id'>) => {
     const newTransaction = { ...t, id: crypto.randomUUID() };
@@ -158,12 +176,12 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* Botão Flutuante de Atualização */}
+        {/* Botão Flutuante de Atualização (Sincronizar/Salvar) */}
         <button 
-          onClick={loadData}
+          onClick={manualUpdate}
           disabled={isRefreshing}
-          title="Atualizar dados"
-          className={`fixed bottom-8 right-8 z-[60] w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all group ${isRefreshing ? 'opacity-70' : ''}`}
+          title="Sincronizar alterações"
+          className={`fixed bottom-8 right-8 z-[60] w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all group ${isRefreshing ? 'bg-indigo-400' : ''}`}
         >
           <div className={`${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
             <RefreshIcon />
@@ -181,7 +199,7 @@ const App: React.FC = () => {
                   {activeTab === 'ajuda' && 'Consultor de IA'}
                   {activeTab === 'configuracoes' && 'Preferências'}
                 </span>
-                <span className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                <span className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-emerald-500' : syncStatus === 'saving' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`}></span>
               </div>
               <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
                 Olá, {state.user.name.split(' ')[0]}
