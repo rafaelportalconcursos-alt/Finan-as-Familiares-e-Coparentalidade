@@ -20,6 +20,7 @@ const App: React.FC = () => {
   
   const isInitialMount = useRef(true);
 
+  // Migração e normalização de dados recebidos do banco
   const migrateState = (data: any): AppState => {
     return {
       ...INITIAL_STATE,
@@ -37,6 +38,7 @@ const App: React.FC = () => {
     };
   };
 
+  // Carregar dados iniciais
   const loadData = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -54,7 +56,7 @@ const App: React.FC = () => {
       setSyncStatus('synced');
     } catch (err: any) {
       setSyncStatus('error');
-      setErrorMessage(err.message);
+      console.error("Erro ao carregar dados:", err);
     } finally {
       const saved = localStorage.getItem('family_finance_v3');
       if (saved && isInitialMount.current) {
@@ -63,28 +65,34 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Função para salvar manualmente (Atualizar nuvem)
+  // SALVAMENTO MANUAL (Botão Atualizar Nuvem)
+  // Esta função envia o estado ATUAL para o Supabase
   const manualUpdate = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     setSyncStatus('saving');
+    
     try {
       const { error } = await supabase
         .from('user_state')
         .upsert({ id: 'rafael-user-01', state: state });
+      
       if (error) throw error;
+      
       setSyncStatus('synced');
-      // Feedback visual rápido de sucesso
-      setTimeout(() => setIsRefreshing(false), 800);
+      // Pequeno delay para o usuário ver a animação de sucesso
+      setTimeout(() => setIsRefreshing(false), 1200);
     } catch (err: any) {
       setSyncStatus('error');
       setErrorMessage(err.message);
       setIsRefreshing(false);
+      alert("Erro ao sincronizar com a nuvem: " + err.message);
     }
   };
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Autosave com debounce e LocalStorage
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -104,9 +112,8 @@ const App: React.FC = () => {
         setSyncStatus('synced');
       } catch (err: any) {
         setSyncStatus('error');
-        setErrorMessage(err.message);
       }
-    }, 2000);
+    }, 5000); // 5 segundos de inatividade para autosave
 
     return () => clearTimeout(handler);
   }, [state, syncStatus, isRefreshing]);
@@ -176,16 +183,24 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* Botão Flutuante de Atualização (Sincronizar/Salvar) */}
+        {/* BOTÃO ATUALIZAR (Sincronização Manual) */}
         <button 
           onClick={manualUpdate}
           disabled={isRefreshing}
-          title="Sincronizar alterações"
-          className={`fixed bottom-8 right-8 z-[60] w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all group ${isRefreshing ? 'bg-indigo-400' : ''}`}
+          className={`fixed bottom-8 right-8 z-[60] flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl transition-all active:scale-95 group overflow-hidden ${
+            isRefreshing 
+            ? 'bg-amber-500 text-white w-48' 
+            : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105'
+          }`}
         >
-          <div className={`${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}>
+          <div className={`${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`}>
             <RefreshIcon />
           </div>
+          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+            {isRefreshing ? 'Salvando Tudo...' : 'Salvar Alterações'}
+          </span>
+          {/* Brilho animado enquanto salva */}
+          {isRefreshing && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>}
         </button>
 
         <main className="max-w-7xl mx-auto px-6 md:px-16 pt-12 pb-12 w-full">
@@ -205,11 +220,6 @@ const App: React.FC = () => {
                 Olá, {state.user.name.split(' ')[0]}
               </h1>
             </div>
-            <div className="flex gap-4">
-              <div className="w-12 h-12 glass rounded-2xl flex items-center justify-center text-slate-400 cursor-pointer hover:bg-white transition-all">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              </div>
-            </div>
           </header>
 
           {activeTab === 'painel' && (
@@ -227,6 +237,7 @@ const App: React.FC = () => {
 
           {activeTab === 'financeiro' && (
              <div className="animate-in fade-in duration-500 space-y-10">
+               {/* Lançamento rápido */}
                <div className="glass p-10 rounded-[3rem] border-white/20 dark:border-slate-800">
                   <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-[0.2em] text-[10px] mb-8">Registrar Lançamento</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -314,12 +325,6 @@ const App: React.FC = () => {
                   </div>
                 ))}
                 {isLoading && <div className="text-[10px] font-black text-indigo-400 animate-pulse uppercase tracking-[0.3em]">IA está analisando seus dados...</div>}
-                {chatMessages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-40">
-                    <AiIcon />
-                    <p className="max-w-xs font-bold text-slate-500">Olá Rafael, pergunte algo como: "Como está minha economia este mês?" ou "Quanto gastei com a Alice hoje?"</p>
-                  </div>
-                )}
               </div>
               <form onSubmit={handleChatSubmit} className="p-10 border-t border-slate-100 dark:border-slate-800 bg-white/10 dark:bg-slate-900/10 flex gap-4">
                 <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Digite sua dúvida financeira..." className="flex-1 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-5 rounded-[2rem] outline-none focus:border-indigo-500 text-slate-800 dark:text-white font-medium shadow-inner" />
@@ -335,6 +340,16 @@ const App: React.FC = () => {
           )}
         </main>
       </div>
+      
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 1.5s infinite;
+        }
+      `}</style>
     </div>
   );
 };
