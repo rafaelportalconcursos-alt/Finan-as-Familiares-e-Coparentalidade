@@ -17,8 +17,35 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error' | 'setup_required'>('synced');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFabOpen, setIsFabOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   
   const isInitialMount = useRef(true);
+
+  // Função de Notificação/Toast com Vibração
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    
+    // Feedback Háptico (Vibração no Celular)
+    if ("vibrate" in navigator) {
+      if (type === 'error') navigator.vibrate([100, 50, 100]);
+      else navigator.vibrate(50);
+    }
+
+    // Tenta usar a notificação do sistema se permitida
+    if (state.settings.notifications.push && "Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("FamilyFinance", { 
+          body: message,
+          icon: '/favicon.ico' 
+        });
+      } catch (e) {
+        // Fallback para navegadores que exigem Service Workers para notificações
+        console.info("Notificação de sistema silenciosa: " + message);
+      }
+    }
+
+    setTimeout(() => setToast(null), 3500);
+  }, [state.settings.notifications.push]);
 
   const migrateState = (data: any): AppState => {
     return {
@@ -62,16 +89,13 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Salva Manualmente
   const handleManualSave = async () => {
     setSyncStatus('saving');
     setIsRefreshing(true);
     setIsFabOpen(false);
     
     try {
-      // Garante salvamento no localStorage imediatamente
       localStorage.setItem('family_finance_v3', JSON.stringify(state));
-      
       const { error } = await supabase
         .from('user_state')
         .upsert({ id: 'rafael-user-01', state: state });
@@ -79,33 +103,28 @@ const App: React.FC = () => {
       if (error) throw error;
       
       setSyncStatus('synced');
+      showNotification("Sincronizado com Sucesso!", "success");
       setTimeout(() => setIsRefreshing(false), 800);
     } catch (err: any) {
       setSyncStatus('error');
       setIsRefreshing(false);
-      alert("Erro ao salvar: " + err.message);
+      showNotification("Erro na sincronização", "error");
     }
   };
 
-  // Salva e depois Recarrega a Página
   const handleSaveAndRefresh = async () => {
     setSyncStatus('saving');
     setIsRefreshing(true);
     setIsFabOpen(false);
+    showNotification("Salvando antes de reiniciar...", "info");
     
     try {
-      // 1. Salva localmente (instantâneo)
       localStorage.setItem('family_finance_v3', JSON.stringify(state));
-      
-      // 2. Tenta salvar no banco de dados
       await supabase
         .from('user_state')
         .upsert({ id: 'rafael-user-01', state: state });
-      
-      // 3. Recarrega a página
       window.location.reload();
     } catch (err) {
-      // Se falhar o banco, recarrega mesmo assim pois o localStorage salvou o progresso
       window.location.reload();
     }
   };
@@ -143,6 +162,7 @@ const App: React.FC = () => {
       transactions: [newTransaction, ...prev.transactions],
       childSupportStatus: t.category === Category.PENSION ? 'Pago' : prev.childSupportStatus
     }));
+    showNotification(`${t.type === TransactionType.INCOME ? 'Entrada' : 'Saída'} registrada`);
   };
 
   const handleChatSubmit = async (e: React.FormEvent) => {
@@ -160,8 +180,9 @@ const App: React.FC = () => {
       const context = `Usuário: ${state.user.name}. Saldo: R$ ${balance}. Pensão: R$ ${state.monthlyPensionAmount}. Filha: ${state.child.name}.`;
       const response = await GeminiService.askFinanceAssistant(chatInput, context, currentHistory);
       setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: response }]);
+      showNotification("Nova mensagem da IA", "info");
     } catch (err) {
-      setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: "Desculpe, tive um problema de conexão com a IA." }]);
+      setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: "Erro na conexão com o assistente." }]);
     } finally {
       setIsLoading(false);
     }
@@ -169,6 +190,28 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-500 ${state.settings.theme === 'dark' ? 'dark' : ''}`}>
+      
+      {/* Sistema de Toasts (Estilo Push Notification Mobile) */}
+      {toast && (
+        <div className="fixed top-6 left-6 right-6 z-[250] flex justify-center animate-in slide-in-from-top-full duration-500">
+          <div className={`w-full max-w-sm px-6 py-4 rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] flex items-center gap-4 border backdrop-blur-xl ${
+            toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : 
+            toast.type === 'error' ? 'bg-rose-600/90 border-rose-400 text-white' : 
+            'bg-slate-900/90 border-slate-700 text-white'
+          }`}>
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+               {toast.type === 'success' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+               {toast.type === 'error' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+               {toast.type === 'info' && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Aviso do Sistema</span>
+              <span className="text-xs font-bold leading-tight">{toast.message}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 pb-24 md:pb-0 md:pl-24 bg-slate-50 dark:bg-black transition-colors">
         
         {/* Navegação Mobile */}
@@ -192,7 +235,7 @@ const App: React.FC = () => {
           </nav>
         </aside>
 
-        {/* FAB MENU - Botão Flutuante de Ações */}
+        {/* FAB MENU */}
         <div className="fixed bottom-[110px] md:bottom-10 right-6 z-[100] flex flex-col items-end gap-4">
           {isFabOpen && (
             <div className="flex flex-col items-end gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300">
@@ -260,8 +303,8 @@ const App: React.FC = () => {
               goals={state.goals} 
               pensionStatus={state.childSupportStatus}
               nextVisit={state.visitations.find(v => v.status === 'Planejado')?.date || null}
-              onDeleteGoal={(id) => setState(p => ({ ...p, goals: p.goals.filter(g => g.id !== id) }))}
-              onAddGoal={(g) => setState(p => ({ ...p, goals: [...p.goals, { ...g, id: crypto.randomUUID() }] }))}
+              onDeleteGoal={(id) => { setState(p => ({ ...p, goals: p.goals.filter(g => g.id !== id) })); showNotification("Meta removida"); }}
+              onAddGoal={(g) => { setState(p => ({ ...p, goals: [...p.goals, { ...g, id: crypto.randomUUID() }] })); showNotification("Nova meta definida!"); }}
               onAddTransaction={addTransaction}
               spendingLimit={state.settings.spendingLimit}
             />
@@ -309,7 +352,10 @@ const App: React.FC = () => {
                           <span className={`text-lg font-black ${t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
                             {t.type === TransactionType.INCOME ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
-                          <button onClick={() => setState(p => ({ ...p, transactions: p.transactions.filter(tr => tr.id !== t.id) }))} className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all">
+                          <button onClick={() => {
+                            setState(p => ({ ...p, transactions: p.transactions.filter(tr => tr.id !== t.id) }));
+                            showNotification("Lançamento removido");
+                          }} className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all">
                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                           </button>
                         </div>
@@ -327,10 +373,22 @@ const App: React.FC = () => {
               transactions={state.transactions} 
               visitations={state.visitations}
               onAddTransaction={addTransaction}
-              onDeleteTransaction={(id) => setState(p => ({ ...p, transactions: p.transactions.filter(t => t.id !== id) }))}
-              onAddVisitation={(v) => setState(p => ({ ...p, visitations: [{...v, id: crypto.randomUUID()}, ...p.visitations] }))}
-              onDeleteVisitation={(id) => setState(p => ({ ...p, visitations: p.visitations.filter(v => v.id !== id) }))}
-              onUpdateChild={(data) => setState(p => ({ ...p, child: { ...p.child, ...data } }))}
+              onDeleteTransaction={(id) => {
+                setState(p => ({ ...p, transactions: p.transactions.filter(t => t.id !== id) }));
+                showNotification("Transação excluída");
+              }}
+              onAddVisitation={(v) => {
+                setState(p => ({ ...p, visitations: [{...v, id: crypto.randomUUID()}, ...p.visitations] }));
+                showNotification("Visita agendada!");
+              }}
+              onDeleteVisitation={(id) => {
+                setState(p => ({ ...p, visitations: p.visitations.filter(v => v.id !== id) }));
+                showNotification("Visita removida");
+              }}
+              onUpdateChild={(data) => {
+                setState(p => ({ ...p, child: { ...p.child, ...data } }));
+                showNotification("Dados de Alice atualizados");
+              }}
               pensionAmount={state.monthlyPensionAmount}
               pensionStatus={state.childSupportStatus}
             />
@@ -367,20 +425,13 @@ const App: React.FC = () => {
           )}
 
           {activeTab === 'configuracoes' && (
-            <Settings state={state} onUpdateState={(newData) => setState(p => ({ ...p, ...newData }))} onResetData={() => { if(confirm('Excluir todos os dados?')) setState(INITIAL_STATE); }} onShowSql={() => {}} syncStatus={syncStatus} />
+            <Settings state={state} onUpdateState={(newData) => {
+              setState(p => ({ ...p, ...newData }));
+              showNotification("Preferências salvas");
+            }} onResetData={() => { if(confirm('Excluir todos os dados?')) setState(INITIAL_STATE); }} onShowSql={() => {}} syncStatus={syncStatus} />
           )}
         </main>
       </div>
-      
-      <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        .animate-shimmer {
-          animation: shimmer 1.5s infinite;
-        }
-      `}</style>
     </div>
   );
 };
