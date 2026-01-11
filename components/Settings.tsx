@@ -33,10 +33,46 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
     onUpdateState({ settings: { ...settings, ...data } });
   };
 
+  const updateNotifications = (data: Partial<NotificationSettings>) => {
+    onUpdateState({ 
+      settings: { 
+        ...settings, 
+        notifications: { ...settings.notifications, ...data } 
+      } 
+    });
+  };
+
+  // Função para pedir permissão de notificação no celular/browser
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) {
+      alert("Este navegador não suporta notificações.");
+      return false;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      new Notification("FamilyFinance Ativo", { body: "Você receberá alertas importantes aqui." });
+      return true;
+    }
+    return false;
+  };
+
+  const handlePushToggle = async () => {
+    const isCurrentlyEnabled = settings.notifications.push;
+    if (!isCurrentlyEnabled) {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        updateNotifications({ push: true });
+      } else {
+        alert("Para receber alertas, você precisa autorizar as notificações nas configurações do seu celular/navegador.");
+      }
+    } else {
+      updateNotifications({ push: false });
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'user' | 'child') => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validar tamanho (ex: max 2MB para não sobrecarregar o JSON do banco)
       if (file.size > 2 * 1024 * 1024) {
         alert("A imagem é muito grande. Escolha uma foto de até 2MB.");
         return;
@@ -69,12 +105,23 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
     </button>
   );
 
+  const Toggle = ({ active, onToggle, label }: { active: boolean, onToggle: () => void, label: string }) => (
+    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all">
+      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{label}</span>
+      <button 
+        onClick={onToggle}
+        className={`w-12 h-6 rounded-full relative transition-colors ${active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+      >
+        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${active ? 'translate-x-7' : 'translate-x-1'}`}></div>
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex flex-col lg:flex-row gap-8 animate-in slide-in-from-bottom-8 duration-700">
       <input type="file" ref={userFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'user')} />
       <input type="file" ref={childFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'child')} />
 
-      {/* Settings Navigation */}
       <div className="w-full lg:w-72 space-y-2">
         <SidebarItem id="profile" label="Seu Perfil" icon={<UserIcon />} />
         <SidebarItem id="child" label="Perfil da Criança" icon={<HeartIcon />} />
@@ -84,7 +131,6 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
         <SidebarItem id="privacy" label="Dados & Nuvem" icon={<ShieldIcon />} />
       </div>
 
-      {/* Settings Content */}
       <div className="flex-1 glass p-8 lg:p-12 rounded-[2.5rem] shadow-xl border border-white/40 dark:border-slate-800 min-h-[600px]">
         
         {activeSubTab === 'profile' && (
@@ -113,7 +159,7 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                   <EditIcon size={14} />
                 </div>
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-1 text-center md:text-left">
                 <h4 className="text-2xl font-black text-slate-800 dark:text-white">{user.name}</h4>
                 <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">{user.email}</p>
                 <button 
@@ -183,7 +229,7 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                   <EditIcon size={14} />
                 </div>
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-1 text-center md:text-left">
                 <h4 className="text-2xl font-black text-slate-800 dark:text-white">{child.name}</h4>
                 <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">Identidade Visual da Filha</p>
                 <button 
@@ -214,45 +260,81 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
                   className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pediatra / Contato</label>
                 <input 
                   type="text" 
                   value={child.pediatrician || ''} 
-                  placeholder="Ex: Dr. Pedro - (11) 9..."
+                  placeholder="Ex: Dra. Helena - (11) 9..."
                   onChange={(e) => updateChild({ pediatrician: e.target.value })}
                   className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
                 />
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'notifications' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+            <header>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Notificações</h3>
+              <p className="text-slate-400 text-sm font-medium mt-1">Configure os alertas do FamilyFinance no seu celular</p>
+            </header>
+            
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Canais Ativos</h4>
+                <Toggle active={settings.notifications.push} onToggle={handlePushToggle} label="Notificações Push (Requer Permissão)" />
+                <Toggle active={settings.notifications.email} onToggle={() => updateNotifications({ email: !settings.notifications.email })} label="Alertas por E-mail" />
+                <Toggle active={settings.notifications.whatsapp} onToggle={() => updateNotifications({ whatsapp: !settings.notifications.whatsapp })} label="Avisos via WhatsApp (Beta)" />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 pt-4">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tipos de Alerta</h4>
+                <Toggle active={settings.notifications.alerts.billDue} onToggle={() => updateNotifications({ alerts: { ...settings.notifications.alerts, billDue: !settings.notifications.alerts.billDue } })} label="Vencimento de Pensão e Contas" />
+                <Toggle active={settings.notifications.alerts.lowBalance} onToggle={() => updateNotifications({ alerts: { ...settings.notifications.alerts, lowBalance: !settings.notifications.alerts.lowBalance } })} label="Aviso de Saldo Baixo" />
+                <Toggle active={settings.notifications.alerts.newIncome} onToggle={() => updateNotifications({ alerts: { ...settings.notifications.alerts, newIncome: !settings.notifications.alerts.newIncome } })} label="Confirmação de Receitas" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSubTab === 'finance' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+            <header>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Gestão Financeira</h3>
+              <p className="text-slate-400 text-sm font-medium mt-1">Parâmetros para o cálculo automático de gastos e Alice</p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Escola / Série</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor da Pensão Mensal (R$)</label>
                 <input 
-                  type="text" 
-                  value={child.school || ''} 
-                  placeholder="Ex: Colégio Objetivo - Infantil III"
-                  onChange={(e) => updateChild({ school: e.target.value })}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                  type="number" 
+                  value={state.monthlyPensionAmount} 
+                  onChange={(e) => onUpdateState({ monthlyPensionAmount: parseFloat(e.target.value) || 0 })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 dark:text-white"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo Sanguíneo</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dia Fixo de Vencimento</label>
                 <input 
-                  type="text" 
-                  value={child.bloodType || ''} 
-                  placeholder="Ex: A+"
-                  onChange={(e) => updateChild({ bloodType: e.target.value })}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                  type="number" 
+                  min="1" max="31"
+                  value={state.pensionDueDate} 
+                  onChange={(e) => onUpdateState({ pensionDueDate: parseInt(e.target.value) || 1 })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 dark:text-white"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alergias Relevantes</label>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Limite Máximo de Gastos por Mês (R$)</label>
                 <input 
-                  type="text" 
-                  value={child.allergies || ''} 
-                  placeholder="Ex: Amoxicilina, Poeira..."
-                  onChange={(e) => updateChild({ allergies: e.target.value })}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 font-bold text-slate-800 dark:text-white"
+                  type="number" 
+                  value={settings.spendingLimit} 
+                  onChange={(e) => updateGeneral({ spendingLimit: parseFloat(e.target.value) || 0 })}
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 dark:text-white"
                 />
+                <p className="text-[10px] text-slate-400 font-medium px-2">O assistente irá sugerir economia quando atingir 80% deste valor.</p>
               </div>
             </div>
           </div>
@@ -261,13 +343,13 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
         {activeSubTab === 'preferences' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
              <header>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Experiência</h3>
-              <p className="text-slate-400 text-sm font-medium mt-1">Personalize o visual do seu FamilyFinance</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Experiência Visual</h3>
+              <p className="text-slate-400 text-sm font-medium mt-1">Ajuste as cores e o comportamento da interface</p>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tema Visual</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tema Principal</label>
                 <div className="grid grid-cols-3 gap-3">
                   {['light', 'dark', 'auto'].map(t => (
                     <button 
@@ -292,30 +374,29 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
              <header>
               <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Sincronização & Nuvem</h3>
-              <p className="text-slate-400 text-sm font-medium mt-1">Gerencie seu banco de dados Supabase</p>
+              <p className="text-slate-400 text-sm font-medium mt-1">Gerencie a conexão com o servidor Supabase</p>
             </header>
             <div className="p-8 bg-indigo-50 dark:bg-indigo-900/10 rounded-[2rem] border border-indigo-100 dark:border-indigo-800/30">
                <div className="flex items-center gap-4 mb-4">
                   <div className="p-3 bg-indigo-600 text-white rounded-2xl"><ShieldIcon size={20} /></div>
                   <div>
-                    <h4 className="font-black text-slate-900 dark:text-white">Status da Nuvem</h4>
-                    <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{syncStatus === 'synced' ? 'Todos os dados protegidos' : 'Aguardando sincronização'}</p>
+                    <h4 className="font-black text-slate-900 dark:text-white">Estado da Sincronização</h4>
+                    <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{syncStatus === 'synced' ? 'Backup Concluído' : 'Sincronizando...'}</p>
                   </div>
                </div>
-               <p className="text-xs text-slate-500 leading-relaxed mb-6">Seus dados são salvos automaticamente no Supabase, mas você pode usar o botão flutuante no canto inferior para forçar um salvamento de informações novas ou fotos pesadas.</p>
+               <p className="text-xs text-slate-500 leading-relaxed mb-6">O botão flutuante no canto da tela força uma atualização imediata do banco de dados, ideal para quando você anexa fotos pesadas.</p>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <button onClick={onShowSql} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition">Ver Estrutura SQL</button>
-                 <button onClick={onResetData} className="p-4 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-900/30 text-rose-600 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition">Resetar Tudo</button>
+                 <button onClick={onShowSql} className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition">Ver Log Técnico</button>
+                 <button onClick={onResetData} className="p-4 bg-rose-50 dark:bg-rose-900/10 rounded-2xl border border-rose-100 dark:border-rose-900/30 text-rose-600 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition">Resetar App</button>
                </div>
             </div>
           </div>
         )}
 
-        {/* Outras abas simplificadas para foco */}
-        {['notifications', 'security', 'finance', 'support'].includes(activeSubTab) && (
+        {['security', 'support'].includes(activeSubTab) && (
            <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4 opacity-50">
              <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full"><SettingsIcon size={32} /></div>
-             <p className="font-bold text-sm">Funcionalidade em desenvolvimento na versão Pro</p>
+             <p className="font-bold text-sm">Em breve na versão Pro</p>
            </div>
         )}
 
@@ -324,7 +405,6 @@ export const Settings: React.FC<SettingsProps> = ({ state, onUpdateState, onRese
   );
 };
 
-// Ícones locais
 const UserIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 const HeartIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const BellIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;

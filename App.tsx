@@ -20,7 +20,6 @@ const App: React.FC = () => {
   
   const isInitialMount = useRef(true);
 
-  // Migração e normalização de dados recebidos do banco
   const migrateState = (data: any): AppState => {
     return {
       ...INITIAL_STATE,
@@ -38,7 +37,6 @@ const App: React.FC = () => {
     };
   };
 
-  // Carregar dados iniciais
   const loadData = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -56,7 +54,6 @@ const App: React.FC = () => {
       setSyncStatus('synced');
     } catch (err: any) {
       setSyncStatus('error');
-      console.error("Erro ao carregar dados:", err);
     } finally {
       const saved = localStorage.getItem('family_finance_v3');
       if (saved && isInitialMount.current) {
@@ -65,8 +62,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // SALVAMENTO MANUAL (Botão Atualizar Nuvem)
-  // Esta função envia o estado ATUAL para o Supabase
   const manualUpdate = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
@@ -80,7 +75,6 @@ const App: React.FC = () => {
       if (error) throw error;
       
       setSyncStatus('synced');
-      // Pequeno delay para o usuário ver a animação de sucesso
       setTimeout(() => setIsRefreshing(false), 1200);
     } catch (err: any) {
       setSyncStatus('error');
@@ -92,7 +86,6 @@ const App: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Autosave com debounce e LocalStorage
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -113,7 +106,7 @@ const App: React.FC = () => {
       } catch (err: any) {
         setSyncStatus('error');
       }
-    }, 5000); // 5 segundos de inatividade para autosave
+    }, 5000);
 
     return () => clearTimeout(handler);
   }, [state, syncStatus, isRefreshing]);
@@ -140,9 +133,7 @@ const App: React.FC = () => {
     try {
       const balance = state.transactions.reduce((acc, t) => acc + (t.type === TransactionType.INCOME ? t.amount : -t.amount), 0);
       const context = `Usuário: ${state.user.name}. Saldo: R$ ${balance}. Pensão: R$ ${state.monthlyPensionAmount}. Filha: ${state.child.name}.`;
-      
       const response = await GeminiService.askFinanceAssistant(chatInput, context, currentHistory);
-      
       setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: response }]);
     } catch (err) {
       setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: "Desculpe, tive um problema de conexão com a IA." }]);
@@ -155,7 +146,6 @@ const App: React.FC = () => {
     <div className={`min-h-screen flex flex-col font-sans transition-all duration-500 ${state.settings.theme === 'dark' ? 'dark' : ''}`}>
       <div className="flex-1 pb-24 md:pb-0 md:pl-24 bg-slate-50 dark:bg-black transition-colors">
         
-        {/* Navegação Mobile */}
         <nav className="fixed bottom-6 left-6 right-6 h-20 glass rounded-[2rem] flex md:hidden z-50 px-4 items-center shadow-2xl">
           <MobileTab active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} />
           <MobileTab active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<FinanceIcon />} />
@@ -164,7 +154,6 @@ const App: React.FC = () => {
           <MobileTab active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes')} icon={<SettingsIcon />} />
         </nav>
 
-        {/* Sidebar Desktop */}
         <aside className="fixed left-6 top-6 bottom-6 w-20 bg-slate-900 rounded-[2.5rem] hidden md:flex flex-col items-center py-10 z-50 border border-slate-800 shadow-2xl">
           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 shadow-lg">FF</div>
           <nav className="flex-1 flex flex-col gap-10">
@@ -183,11 +172,10 @@ const App: React.FC = () => {
           </div>
         </aside>
 
-        {/* BOTÃO ATUALIZAR (Sincronização Manual) - Posicionado mais para cima conforme solicitado */}
         <button 
           onClick={manualUpdate}
           disabled={isRefreshing}
-          className={`fixed bottom-32 right-8 z-[60] flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl transition-all active:scale-95 group overflow-hidden ${
+          className={`fixed bottom-52 right-8 z-[60] flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl transition-all active:scale-95 group overflow-hidden ${
             isRefreshing 
             ? 'bg-amber-500 text-white w-48' 
             : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105'
@@ -199,7 +187,6 @@ const App: React.FC = () => {
           <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
             {isRefreshing ? 'Salvando Tudo...' : 'Salvar Alterações'}
           </span>
-          {/* Brilho animado enquanto salva */}
           {isRefreshing && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>}
         </button>
 
@@ -237,7 +224,6 @@ const App: React.FC = () => {
 
           {activeTab === 'financeiro' && (
              <div className="animate-in fade-in duration-500 space-y-10">
-               {/* Lançamento rápido */}
                <div className="glass p-10 rounded-[3rem] border-white/20 dark:border-slate-800">
                   <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-[0.2em] text-[10px] mb-8">Registrar Lançamento</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
