@@ -2,6 +2,12 @@
 import { AppState, Category, TransactionType } from './types';
 
 export const INITIAL_STATE: AppState = {
+  user: {
+    name: 'Marcos Oliveira',
+    email: 'marcos.oliveira@email.com',
+    phone: '(11) 98765-4321',
+    avatar: ''
+  },
   transactions: [
     {
       id: '1',
@@ -21,15 +27,6 @@ export const INITIAL_STATE: AppState = {
       category: Category.PENSION,
       isCoparenting: true,
       sharedPercentage: 100
-    },
-    {
-      id: '3',
-      date: new Date().toISOString().split('T')[0],
-      description: 'Supermercado',
-      amount: 150.50,
-      type: TransactionType.EXPENSE,
-      category: Category.FOOD,
-      isCoparenting: false
     }
   ],
   visitations: [
@@ -49,5 +46,22 @@ export const INITIAL_STATE: AppState = {
     }
   ],
   childSupportStatus: 'Pago',
-  monthlyPensionAmount: 500
+  monthlyPensionAmount: 500,
+  settings: {
+    language: 'pt-BR',
+    currency: 'BRL',
+    dateFormat: 'DD/MM/YYYY',
+    spendingLimit: 2500,
+    theme: 'light',
+    notifications: {
+      push: true,
+      email: true,
+      whatsapp: false,
+      alerts: {
+        lowBalance: true,
+        billDue: true,
+        newIncome: true
+      }
+    }
+  }
 };

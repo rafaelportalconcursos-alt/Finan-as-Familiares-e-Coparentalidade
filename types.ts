@@ -24,7 +24,7 @@ export interface Transaction {
   type: TransactionType;
   category: Category;
   isCoparenting: boolean;
-  sharedPercentage?: number; // porcentagem que o usuário paga (ex: 50, 100)
+  sharedPercentage?: number;
 }
 
 export interface Visitation {
@@ -41,10 +41,37 @@ export interface Goal {
   currentAmount: number;
 }
 
+export interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  avatar?: string;
+}
+
+export interface NotificationSettings {
+  push: boolean;
+  email: boolean;
+  whatsapp: boolean;
+  alerts: {
+    lowBalance: boolean;
+    billDue: boolean;
+    newIncome: boolean;
+  };
+}
+
 export interface AppState {
+  user: UserProfile;
   transactions: Transaction[];
   visitations: Visitation[];
   goals: Goal[];
   childSupportStatus: 'Pago' | 'Pendente';
   monthlyPensionAmount: number;
+  settings: {
+    language: string;
+    currency: string;
+    dateFormat: string;
+    spendingLimit: number;
+    notifications: NotificationSettings;
+    theme: 'light' | 'dark' | 'auto';
+  };
 }

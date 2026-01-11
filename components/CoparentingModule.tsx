@@ -6,7 +6,9 @@ interface CoparentingModuleProps {
   transactions: Transaction[];
   visitations: Visitation[];
   onAddTransaction: (t: Omit<Transaction, 'id'>) => void;
+  onDeleteTransaction: (id: string) => void;
   onAddVisitation: (v: Omit<Visitation, 'id'>) => void;
+  onDeleteVisitation: (id: string) => void;
   pensionAmount: number;
 }
 
@@ -14,7 +16,9 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
   transactions, 
   visitations, 
   onAddTransaction,
+  onDeleteTransaction,
   onAddVisitation,
+  onDeleteVisitation,
   pensionAmount 
 }) => {
   const [activeTab, setActiveTab] = useState<'expenses' | 'visitation'>('expenses');
@@ -81,9 +85,12 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
                             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest transition-colors">{new Date(t.date).toLocaleDateString('pt-BR')} • {t.category}</p>
                          </div>
                       </div>
-                      <div className="text-right">
-                         <p className="text-lg font-black text-slate-900 dark:text-white transition-colors">R$ {t.amount.toFixed(2)}</p>
-                         <p className="text-[10px] text-indigo-400 dark:text-indigo-500 font-black uppercase tracking-tighter">Cota: {t.sharedPercentage}%</p>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                           <p className="text-lg font-black text-slate-900 dark:text-white transition-colors">R$ {t.amount.toFixed(2)}</p>
+                           <p className="text-[10px] text-indigo-400 dark:text-indigo-500 font-black uppercase tracking-tighter">Cota: {t.sharedPercentage}%</p>
+                        </div>
+                        <button onClick={() => onDeleteTransaction(t.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-2" title="Excluir"><DeleteIcon /></button>
                       </div>
                    </div>
                  ))
@@ -95,10 +102,11 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                {visitations.map(v => (
                  <div key={v.id} className="p-8 border border-indigo-50 dark:border-slate-700 rounded-[2rem] bg-indigo-50/20 dark:bg-slate-800/30 relative group hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 transition-colors">
-                   <div className="absolute top-6 right-8">
+                   <div className="absolute top-6 right-8 flex items-center gap-3">
                      <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest ${v.status === 'Realizado' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
                        {v.status}
                      </span>
+                     <button onClick={() => onDeleteVisitation(v.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1" title="Excluir"><DeleteIcon /></button>
                    </div>
                    <p className="text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest mb-2 transition-colors">{new Date(v.date).toLocaleDateString('pt-BR', { weekday: 'long' })}</p>
                    <p className="text-xl font-black text-slate-900 dark:text-white mb-4 transition-colors">{new Date(v.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}</p>
@@ -124,3 +132,5 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
     </div>
   );
 };
+
+const DeleteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
