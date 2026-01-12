@@ -3,7 +3,7 @@
 <html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>FamilyFinance - Gestão & Coparentalidade</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -32,6 +32,7 @@
         background: radial-gradient(circle at top right, #fdf2f8, #f8fafc, #eff6ff);
         background-attachment: fixed;
         transition: background 0.5s ease, color 0.3s ease;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
       html.dark body {
         background: radial-gradient(circle at top right, #0f172a, #020617, #000000);
@@ -49,19 +50,22 @@
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
       .chart-container {
-        height: 350px;
+        height: 300px;
         width: 100%;
-        min-height: 350px;
+      }
+      @media (min-width: 768px) {
+        .chart-container { height: 350px; }
       }
       ::-webkit-scrollbar {
-        width: 6px;
+        width: 4px;
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: #6366f1;
         border-radius: 10px;
       }
-      html.dark ::-webkit-scrollbar-thumb {
-        background: #1e293b;
+      .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #6366f1 transparent;
       }
     </style>
     <script type="importmap">

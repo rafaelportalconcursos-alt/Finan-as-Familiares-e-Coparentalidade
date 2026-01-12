@@ -7,25 +7,16 @@ export class GeminiService {
    */
   static async askFinanceAssistant(prompt: string, context: string, history: { role: 'user' | 'assistant', content: string }[]): Promise<string> {
     try {
+      // Initialize with named parameter
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const contents: any[] = [];
       
-      // Instrução de Sistema em Português
-      contents.push({
-        role: 'user',
-        parts: [{ text: `Você é o FamilyFinance AI, um consultor financeiro de elite especializado em coparentalidade. 
-          CONTEXTO ATUAL DO USUÁRIO: ${context}. 
-          Responda sempre em Português do Brasil, de forma concisa, empática e técnica.` }]
-      });
-      contents.push({
-        role: 'model',
-        parts: [{ text: "Entendido. Sou seu assistente FamilyFinance. Como posso auxiliar na sua gestão financeira e de coparentalidade hoje?" }]
-      });
-
-      let lastRole = 'model';
+      // Map history roles: 'assistant' to 'model' as per Gemini generateContent requirements
+      let lastRole = '';
       for (const msg of history) {
         const currentRole = msg.role === 'user' ? 'user' : 'model';
+        // Avoid duplicate consecutive roles
         if (currentRole !== lastRole) {
           contents.push({
             role: currentRole,
@@ -35,7 +26,8 @@ export class GeminiService {
         }
       }
 
-      if (lastRole === 'user') {
+      // Append current user prompt
+      if (lastRole === 'user' && contents.length > 0) {
         contents[contents.length - 1].parts[0].text += `\n\nNova dúvida: ${prompt}`;
       } else {
         contents.push({
@@ -44,15 +36,20 @@ export class GeminiService {
         });
       }
 
+      // Call generateContent with model, contents, and systemInstruction in config
       const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: contents,
         config: {
+          systemInstruction: `Você é o FamilyFinance AI, um consultor financeiro de elite especializado em coparentalidade. 
+          CONTEXTO ATUAL DO USUÁRIO: ${context}. 
+          Responda sempre em Português do Brasil, de forma concisa, empática e técnica.`,
           temperature: 0.7,
           thinkingConfig: { thinkingBudget: 0 }
         }
       });
 
+      // Correctly access .text property
       return response.text || "Desculpe, não consegui processar sua resposta agora. Por favor, tente novamente.";
     } catch (error: any) {
       console.error("Erro na Gemini API:", error);
@@ -97,6 +94,7 @@ export class GeminiService {
         }
       });
       
+      // Access response.text property
       return JSON.parse(response.text || "[]");
     } catch (error) {
       console.error("Erro no parser de extrato:", error);
