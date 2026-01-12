@@ -59,6 +59,22 @@ export const INITIAL_STATE: AppState = {
       location: 'Casa da Mãe'
     }
   ],
+  documents: [
+    {
+      id: 'd1',
+      title: 'Sentença',
+      date: '2023-05-15',
+      type: 'Legal',
+      notes: 'Acordo homologado de guarda e pensão.'
+    },
+    {
+      id: 'd2',
+      title: 'Plano de Saúde',
+      date: '2024-01-10',
+      type: 'Saúde',
+      notes: 'Carteirinha digital e guia de uso.'
+    }
+  ],
   goals: [
     {
       id: 'g1',

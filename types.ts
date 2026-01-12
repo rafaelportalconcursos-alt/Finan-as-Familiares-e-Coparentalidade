@@ -26,7 +26,7 @@ export interface Transaction {
   isCoparenting: boolean;
   sharedPercentage?: number;
   attachment?: string;
-  uniqueKey?: string; // Chave para evitar duplicidade: data_valor_descrição
+  uniqueKey?: string;
 }
 
 export interface Visitation {
@@ -38,6 +38,15 @@ export interface Visitation {
   location?: string;
   notes: string;
   confirmed?: boolean;
+}
+
+export interface LegalDocument {
+  id: string;
+  title: string;
+  date: string;
+  type: 'Legal' | 'Saúde' | 'Educação' | 'Outro';
+  notes?: string;
+  fileUrl?: string;
 }
 
 export interface Goal {
@@ -80,6 +89,7 @@ export interface AppState {
   child: ChildData;
   transactions: Transaction[];
   visitations: Visitation[];
+  documents: LegalDocument[];
   goals: Goal[];
   childSupportStatus: 'Pago' | 'Pendente' | 'Atrasado';
   monthlyPensionAmount: number;
