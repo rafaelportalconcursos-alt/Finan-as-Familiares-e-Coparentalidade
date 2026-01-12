@@ -21,6 +21,10 @@ const App: React.FC = () => {
   const [financeSearch, setFinanceSearch] = useState('');
   const [financeCategory, setFinanceCategory] = useState<Category | 'TODOS'>('TODOS');
   
+  // Global Modals State
+  const [globalModal, setGlobalModal] = useState<'transaction' | 'visitation' | 'goal' | null>(null);
+  const [isFabOpen, setIsFabOpen] = useState(false);
+
   const isInitialMount = useRef(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +51,7 @@ const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `family_finance_extrato_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute("download", `extrato_financeiro_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -105,6 +109,14 @@ const App: React.FC = () => {
     showNotification("Lançamento removido.", "info");
   };
 
+  const addVisitation = (v: Omit<Visitation, 'id'>) => {
+    setState(prev => ({
+      ...prev,
+      visitations: [{...v, id: crypto.randomUUID()}, ...prev.visitations]
+    }));
+    showNotification("Visita agendada!");
+  };
+
   const loadData = useCallback(async () => {
     try {
       const { data, error } = await supabase.from('user_state').select('state').eq('id', 'rafael-user-01').single();
@@ -112,7 +124,6 @@ const App: React.FC = () => {
       setSyncStatus('synced');
     } catch (err) {
       setSyncStatus('error');
-      // Tentar carregar do localstorage se o supabase falhar
       const local = localStorage.getItem('family_finance_v3');
       if (local) setState(JSON.parse(local));
     }
@@ -162,6 +173,49 @@ const App: React.FC = () => {
         <ImportModule existingTransactions={state.transactions} onConfirm={handleImportConfirm} onCancel={() => setIsImportOpen(false)} />
       )}
 
+      {/* Floating Action Button (FAB) - "Onde está o +" */}
+      <div className="fixed bottom-32 right-8 md:bottom-12 md:right-12 z-[100] flex flex-col items-end gap-4">
+        {isFabOpen && (
+          <div className="flex flex-col items-end gap-3 mb-2 animate-in slide-in-from-bottom-4 duration-300">
+            <FabSubButton onClick={() => { setGlobalModal('visitation'); setIsFabOpen(false); }} label="Agendar Visita" icon={<CalendarIcon />} color="bg-indigo-500" />
+            <FabSubButton onClick={() => { setGlobalModal('goal'); setIsFabOpen(false); }} label="Nova Meta" icon={<TargetIcon />} color="bg-amber-500" />
+            <FabSubButton onClick={() => { setGlobalModal('transaction'); setIsFabOpen(false); }} label="Novo Gasto" icon={<PlusIcon />} color="bg-rose-500" />
+          </div>
+        )}
+        <button 
+          onClick={() => setIsFabOpen(!isFabOpen)}
+          className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-500 transform ${isFabOpen ? 'bg-slate-900 rotate-45 scale-90' : 'bg-indigo-600 hover:scale-110'}`}
+        >
+          <PlusIcon size={32} />
+        </button>
+      </div>
+
+      {/* Global Transaction Modal */}
+      {globalModal === 'transaction' && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+          <div className="glass max-w-md w-full p-10 rounded-[3rem] shadow-2xl border-white/10 dark:border-slate-800 animate-in zoom-in-95">
+            <h3 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Novo Lançamento</h3>
+            <TransactionForm 
+              onClose={() => setGlobalModal(null)} 
+              onSubmit={(t) => { addTransaction(t); setGlobalModal(null); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Global Visitation Modal */}
+      {globalModal === 'visitation' && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+          <div className="glass max-w-md w-full p-10 rounded-[3rem] shadow-2xl border-white/10 dark:border-slate-800 animate-in zoom-in-95">
+            <h3 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Agendar Visita</h3>
+            <VisitationForm 
+              onClose={() => setGlobalModal(null)} 
+              onSubmit={(v) => { addVisitation(v); setGlobalModal(null); }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 pb-24 md:pb-0 md:pl-24 bg-slate-50 dark:bg-black transition-colors">
         <nav className="fixed bottom-6 left-6 right-6 h-20 glass rounded-[2rem] flex md:hidden z-50 px-4 items-center shadow-2xl">
           <MobileTab active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} />
@@ -172,7 +226,7 @@ const App: React.FC = () => {
         </nav>
 
         <aside className="fixed left-6 top-6 bottom-6 w-20 bg-slate-900 rounded-[2.5rem] hidden md:flex flex-col items-center py-10 z-50 border border-slate-800 shadow-2xl">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 shadow-lg">FF</div>
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 shadow-lg cursor-pointer" onClick={() => setActiveTab('painel')}>FF</div>
           <nav className="flex-1 flex flex-col gap-10">
             <NavIcon active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} />
             <NavIcon active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<FinanceIcon />} />
@@ -225,21 +279,21 @@ const App: React.FC = () => {
                         value={financeSearch}
                         onChange={(e) => setFinanceSearch(e.target.value)}
                         placeholder="Pesquisar descrição..."
-                        className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 pl-12 text-sm text-white focus:border-indigo-500 outline-none"
+                        className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 pl-12 text-sm text-white focus:border-indigo-500 outline-none shadow-inner"
                       />
                       <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                     </div>
                     <select 
                       value={financeCategory}
                       onChange={(e) => setFinanceCategory(e.target.value as any)}
-                      className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-indigo-500 outline-none appearance-none"
+                      className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-sm text-white focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                     >
                       <option value="TODOS">Todas as Categorias</option>
                       {Object.values(Category).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
 
-                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {filteredTransactions.map(t => (
                       <div key={t.id} className="flex items-center justify-between p-6 bg-slate-50 dark:bg-slate-900/30 rounded-[2rem] border border-slate-100 dark:border-white/5 group hover:border-indigo-500/30 transition-all">
                         <div className="flex flex-col">
@@ -251,7 +305,7 @@ const App: React.FC = () => {
                             {t.type === TransactionType.INCOME ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                           <button onClick={() => deleteTransaction(t.id)} className="p-2 text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            <TrashIcon size={20} />
                           </button>
                         </div>
                       </div>
@@ -269,7 +323,7 @@ const App: React.FC = () => {
               visitations={state.visitations} 
               onAddTransaction={addTransaction} 
               onDeleteTransaction={deleteTransaction} 
-              onAddVisitation={(v) => setState(p => ({ ...p, visitations: [{...v, id: crypto.randomUUID()}, ...p.visitations] }))} 
+              onAddVisitation={addVisitation} 
               onDeleteVisitation={(id) => setState(p => ({ ...p, visitations: p.visitations.filter(v => v.id !== id) }))} 
               onUpdateChild={(data) => setState(p => ({ ...p, child: { ...p.child, ...data } }))} 
               pensionAmount={state.monthlyPensionAmount} 
@@ -286,7 +340,7 @@ const App: React.FC = () => {
                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Inteligência Artificial Ativa</p>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-10 space-y-6 bg-slate-50/20 dark:bg-black/20">
+              <div className="flex-1 overflow-y-auto p-10 space-y-6 bg-slate-50/20 dark:bg-black/20 custom-scrollbar">
                 {chatMessages.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
                     <AiIcon />
@@ -335,6 +389,65 @@ const App: React.FC = () => {
   );
 };
 
+// --- FAB Components ---
+const FabSubButton = ({ onClick, label, icon, color }: any) => (
+  <div className="flex items-center gap-3">
+    <span className="px-3 py-1.5 bg-slate-900/80 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl backdrop-blur-md">{label}</span>
+    <button onClick={onClick} className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 transition ${color}`}>
+      {icon}
+    </button>
+  </div>
+);
+
+// --- Form Components ---
+const TransactionForm = ({ onClose, onSubmit }: any) => {
+  const [desc, setDesc] = useState('');
+  const [amount, setAmount] = useState('');
+  const [type, setType] = useState(TransactionType.EXPENSE);
+  const [cat, setCat] = useState(Category.OTHER);
+
+  return (
+    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onSubmit({ date: new Date().toLocaleDateString('en-CA'), description: desc, amount: parseFloat(amount), type, category: cat, isCoparenting: false }); }}>
+      <InputGroup label="Descrição" value={desc} onChange={setDesc} />
+      <InputGroup label="Valor (R$)" type="number" value={amount} onChange={setAmount} />
+      <div className="grid grid-cols-2 gap-4">
+        <button type="button" onClick={() => setType(TransactionType.INCOME)} className={`py-4 rounded-xl text-[10px] font-black uppercase border-2 transition ${type === TransactionType.INCOME ? 'border-emerald-500 bg-emerald-500/10 text-emerald-500' : 'border-white/5 text-slate-500'}`}>Receita</button>
+        <button type="button" onClick={() => setType(TransactionType.EXPENSE)} className={`py-4 rounded-xl text-[10px] font-black uppercase border-2 transition ${type === TransactionType.EXPENSE ? 'border-rose-500 bg-rose-500/10 text-rose-500' : 'border-white/5 text-slate-500'}`}>Despesa</button>
+      </div>
+      <div className="flex gap-4">
+        <button type="button" onClick={onClose} className="flex-1 py-5 text-[10px] font-black uppercase text-slate-500">Cancelar</button>
+        <button type="submit" className="flex-1 py-5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase">Confirmar</button>
+      </div>
+    </form>
+  );
+};
+
+const VisitationForm = ({ onClose, onSubmit }: any) => {
+  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [loc, setLoc] = useState('Casa da Mãe');
+  const [notes, setNotes] = useState('');
+
+  return (
+    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onSubmit({ date, status: 'Planejado', location: loc, notes }); }}>
+      <InputGroup label="Data" type="date" value={date} onChange={setDate} />
+      <InputGroup label="Localização" value={loc} onChange={setLoc} />
+      <InputGroup label="Notas" value={notes} onChange={setNotes} />
+      <div className="flex gap-4 pt-4">
+        <button type="button" onClick={onClose} className="flex-1 py-5 text-[10px] font-black uppercase text-slate-500">Cancelar</button>
+        <button type="submit" className="flex-1 py-5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase">Agendar</button>
+      </div>
+    </form>
+  );
+};
+
+const InputGroup = ({ label, value, onChange, type = "text" }: any) => (
+  <div className="space-y-2">
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <input required type={type} step="any" value={value} onChange={(e) => onChange(e.target.value)} className="w-full p-4 bg-black/30 border border-white/10 rounded-2xl text-white outline-none focus:border-indigo-500" />
+  </div>
+);
+
+// --- Icons & Helpers ---
 const NavIcon = ({ active, onClick, icon }: any) => (
   <button onClick={onClick} className={`p-4 rounded-2xl transition-all ${active ? 'bg-indigo-600 text-white shadow-xl scale-110' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}>{icon}</button>
 );
@@ -347,5 +460,9 @@ const FinanceIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="
 const ChildIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const AiIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>;
 const SettingsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>;
+const PlusIcon = ({ size = 24 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const TrashIcon = ({ size = 20 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+const CalendarIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const TargetIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
 
 export default App;
