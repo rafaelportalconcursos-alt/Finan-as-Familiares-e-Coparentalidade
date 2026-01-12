@@ -25,7 +25,8 @@ export interface Transaction {
   category: Category;
   isCoparenting: boolean;
   sharedPercentage?: number;
-  attachment?: string; // URL ou base64 do comprovante
+  attachment?: string;
+  uniqueKey?: string; // Chave para evitar duplicidade: data_valor_descrição
 }
 
 export interface Visitation {
@@ -82,7 +83,7 @@ export interface AppState {
   goals: Goal[];
   childSupportStatus: 'Pago' | 'Pendente' | 'Atrasado';
   monthlyPensionAmount: number;
-  pensionDueDate: number; // Dia do mês
+  pensionDueDate: number;
   settings: {
     language: string;
     currency: string;
