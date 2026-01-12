@@ -52,9 +52,9 @@ const App: React.FC = () => {
   }, []);
 
   const handleManualSync = async () => {
-    showNotification("Sincronizando...", "info");
+    showNotification("Salvando na nuvem...", "info");
     await saveToCloud(state);
-    if (syncStatus !== 'error') showNotification("Dados salvos na nuvem!");
+    if (syncStatus !== 'error') showNotification("Dados sincronizados!");
   };
 
   useEffect(() => {
@@ -78,7 +78,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isInitialMount.current) { isInitialMount.current = false; return; }
     localStorage.setItem('family_finance_v3', JSON.stringify(state));
-    const handler = setTimeout(() => saveToCloud(state), 5000);
+    const handler = setTimeout(() => saveToCloud(state), 10000);
     return () => clearTimeout(handler);
   }, [state, saveToCloud]);
 
@@ -95,7 +95,7 @@ const App: React.FC = () => {
   const updateState = (newData: Partial<AppState>) => setState(prev => ({ ...prev, ...newData }));
   const deleteTransaction = (id: string) => {
     setState(prev => ({ ...prev, transactions: prev.transactions.filter(t => t.id !== id) }));
-    showNotification("Removido.", "info");
+    showNotification("Registro removido.", "info");
   };
 
   const filteredTransactions = useMemo(() => {
@@ -114,44 +114,56 @@ const App: React.FC = () => {
     setChatInput('');
     setIsLoading(true);
     try {
-      const response = await GeminiService.askFinanceAssistant(userMsg.content, `Usuário: ${state.user.name}`, chatMessages.slice(-6));
+      const response = await GeminiService.askFinanceAssistant(userMsg.content, `Usuário: ${state.user.name}, Filha: ${state.child.name}`, chatMessages.slice(-6));
       setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: response }]);
     } catch (err) {
-      setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: "Erro na IA." }]);
+      setChatMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: "Houve um problema com a conexão da IA." }]);
     } finally { setIsLoading(false); }
   };
 
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-all duration-500 ${state.settings.theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`min-h-screen flex flex-col font-sans transition-all duration-500 bg-black text-white`}>
       {toast && (
-        <div className="fixed top-12 left-6 right-6 z-[250] flex justify-center animate-in slide-in-from-top-full">
-          <div className={`w-full max-w-xs px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border backdrop-blur-xl ${toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : 'bg-slate-900/90 border-slate-700 text-white'}`}>
-            <span className="text-xs font-bold">{toast.message}</span>
+        <div className="fixed top-12 left-6 right-6 z-[250] flex justify-center animate-in slide-in-from-top-full duration-500">
+          <div className={`w-full max-w-xs px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/10 backdrop-blur-2xl bg-slate-900/90`}>
+            <div className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-indigo-500'}`}></div>
+            <span className="text-[10px] font-black uppercase tracking-widest">{toast.message}</span>
           </div>
         </div>
       )}
 
-      {/* Botão de Ação Flutuante (FAB) */}
+      {isImportOpen && (
+        <ImportModule 
+          existingTransactions={state.transactions} 
+          onConfirm={(newT) => { updateState({ transactions: [...newT, ...state.transactions] }); setIsImportOpen(false); showNotification("Importação concluída."); }} 
+          onCancel={() => setIsImportOpen(false)} 
+        />
+      )}
+
+      {/* FAB - Botão Flutuante */}
       <div className="fixed bottom-28 right-6 md:bottom-12 md:right-12 z-[100] flex flex-col items-end gap-3">
         {isFabOpen && (
-          <div className="flex flex-col items-end gap-3 mb-2 animate-in slide-in-from-bottom-4 duration-300">
-            <FabSubButton onClick={() => { handleManualSync(); setIsFabOpen(false); }} label="Sincronizar Nuvem" icon={<CloudIcon />} color="bg-emerald-600" />
+          <div className="flex flex-col items-end gap-3 mb-2 animate-in slide-in-from-bottom-4">
+            <FabSubButton onClick={() => { handleManualSync(); setIsFabOpen(false); }} label="Salvar Tudo" icon={<CloudIcon />} color="bg-emerald-600" />
             <FabSubButton onClick={() => { setGlobalModal('visitation'); setIsFabOpen(false); }} label="Agendar Visita" icon={<CalendarIcon />} color="bg-indigo-500" />
-            <FabSubButton onClick={() => { setGlobalModal('goal'); setIsFabOpen(false); }} label="Nova Meta" icon={<TargetIcon />} color="bg-amber-500" />
             <FabSubButton onClick={() => { setGlobalModal('transaction'); setIsFabOpen(false); }} label="Novo Gasto" icon={<PlusIcon />} color="bg-rose-500" />
           </div>
         )}
         <button 
           onClick={() => setIsFabOpen(!isFabOpen)}
-          className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white shadow-2xl transition-all transform ${isFabOpen ? 'bg-slate-900 rotate-45' : 'bg-indigo-600 hover:scale-110'}`}
+          className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white shadow-2xl transition-all transform ${isFabOpen ? 'bg-slate-900 rotate-45' : 'bg-indigo-600 shadow-indigo-500/20'}`}
         >
           <PlusIcon size={28} />
         </button>
       </div>
 
-      <div className="flex-1 pb-24 md:pb-0 md:pl-24 bg-slate-50 dark:bg-black transition-colors">
-        {/* Nav Mobile */}
-        <nav className="fixed bottom-6 left-6 right-6 h-16 glass rounded-3xl flex md:hidden z-50 px-2 items-center shadow-2xl border border-white/10">
+      <div className="flex-1 pb-24 md:pb-0 md:pl-24 bg-black transition-colors">
+        {/* Navegação Mobile Inferior */}
+        <nav className="fixed bottom-6 left-6 right-6 h-16 glass rounded-3xl flex md:hidden z-50 px-2 items-center shadow-2xl border border-white/5">
           <MobileTab active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} />
           <MobileTab active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<FinanceIcon />} />
           <MobileTab active={activeTab === 'alice'} onClick={() => setActiveTab('alice')} icon={<ChildIcon />} />
@@ -159,9 +171,9 @@ const App: React.FC = () => {
           <MobileTab active={activeTab === 'configuracoes'} onClick={() => setActiveTab('configuracoes')} icon={<SettingsIcon />} />
         </nav>
 
-        {/* Sidebar Desktop */}
-        <aside className="fixed left-6 top-6 bottom-6 w-20 bg-slate-900 rounded-[2.5rem] hidden md:flex flex-col items-center py-10 z-50 border border-slate-800 shadow-2xl">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 cursor-pointer" onClick={() => setActiveTab('painel')}>FF</div>
+        {/* Sidebar Desktop Otimizada */}
+        <aside className="fixed left-6 top-6 bottom-6 w-20 bg-slate-900/50 rounded-[2.5rem] hidden md:flex flex-col items-center py-10 z-50 border border-white/5 shadow-2xl backdrop-blur-xl">
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-900 font-black mb-12 cursor-pointer shadow-lg" onClick={() => setActiveTab('painel')}>FF</div>
           <nav className="flex-1 flex flex-col gap-10">
             <NavIcon active={activeTab === 'painel'} onClick={() => setActiveTab('painel')} icon={<DashboardIcon />} />
             <NavIcon active={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} icon={<FinanceIcon />} />
@@ -171,20 +183,21 @@ const App: React.FC = () => {
           </nav>
         </aside>
 
-        <main className="max-w-7xl mx-auto px-4 md:px-16 pt-8 md:pt-12 pb-12 w-full">
+        <main className="max-w-7xl mx-auto px-6 md:px-16 pt-8 md:pt-12 pb-12 w-full">
           <header className="mb-8 md:mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Family Finance Pro</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">Family Finance Pro</span>
                 <div className="flex items-center gap-2">
-                   <span className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-emerald-500' : syncStatus === 'saving' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                   <span className="text-[8px] font-black uppercase text-slate-400">{syncStatus === 'synced' ? 'Nuvem OK' : 'Sincronizando'}</span>
+                   <span className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'synced' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></span>
+                   <span className="text-[8px] font-black uppercase text-slate-500 tracking-widest">{syncStatus === 'synced' ? 'Nuvem OK' : 'Sincronizando'}</span>
                 </div>
               </div>
-              <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tighter">Olá, {state.user.name.split(' ')[0]}</h1>
+              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter">Olá, {state.user.name.split(' ')[0]}</h1>
             </div>
           </header>
 
+          {/* Renderização Condicional de Conteúdo */}
           {activeTab === 'painel' && (
             <Dashboard 
               transactions={state.transactions} goals={state.goals} pensionStatus={state.childSupportStatus} 
@@ -192,37 +205,133 @@ const App: React.FC = () => {
               onDeleteGoal={(id) => updateState({ goals: state.goals.filter(g => g.id !== id) })} 
               onAddGoal={(g) => updateState({ goals: [...state.goals, { ...g, id: crypto.randomUUID() }] })} 
               onAddTransaction={addTransaction} spendingLimit={state.settings.spendingLimit} 
-              onExport={() => {}} 
+              onExport={() => showNotification("Relatório gerado!", "success")} 
             />
           )}
 
           {activeTab === 'financeiro' && (
-             <div className="space-y-6">
-               <h3 className="text-2xl font-black text-slate-900 dark:text-white">Financeiro</h3>
-               <div className="glass p-6 rounded-3xl space-y-4">
-                  <input type="text" value={financeSearch} onChange={(e) => setFinanceSearch(e.target.value)} placeholder="Pesquisar..." className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-white outline-none" />
-                  <div className="space-y-3">
-                    {filteredTransactions.slice(0, 10).map(t => (
-                      <div key={t.id} className="flex justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                        <span className="text-sm font-bold">{t.description}</span>
-                        <span className={`text-sm font-black ${t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-white'}`}>R$ {t.amount}</span>
-                      </div>
-                    ))}
+             <div className="animate-in fade-in duration-500 space-y-8">
+               <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-black text-white tracking-tight">Financeiro</h3>
+                  <button onClick={() => setIsImportOpen(true)} className="px-5 py-2.5 bg-indigo-600/10 text-indigo-400 border border-indigo-600/20 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition shadow-lg shadow-indigo-500/5">Importar Extrato</button>
+               </div>
+               
+               <div className="glass p-6 md:p-10 rounded-[2.5rem] border-white/5 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" value={financeSearch} onChange={(e) => setFinanceSearch(e.target.value)} placeholder="Pesquisar por descrição..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs text-white focus:border-indigo-500 outline-none transition-all shadow-inner" />
+                    <select value={financeCategory} onChange={(e) => setFinanceCategory(e.target.value as any)} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs text-white focus:border-indigo-500 outline-none appearance-none cursor-pointer">
+                      <option value="TODOS">Todas as Categorias</option>
+                      {Object.values(Category).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
+                    {filteredTransactions.length === 0 ? (
+                      <div className="py-20 text-center opacity-30 italic font-black text-xs uppercase tracking-widest">Nenhum registro encontrado</div>
+                    ) : (
+                      filteredTransactions.map(t => (
+                        <div key={t.id} className="flex items-center justify-between p-5 bg-white/5 rounded-3xl border border-white/5 group hover:border-indigo-500/30 transition-all">
+                          <div className="flex gap-4 items-center">
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${t.type === TransactionType.INCOME ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-400'}`}>
+                               {t.type === TransactionType.INCOME ? <TrendingUpIcon /> : <TrendingDownIcon />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-white">{t.description}</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{t.date} • {t.category}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <span className={`text-sm font-black ${t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-white'}`}>
+                              R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                            <button onClick={() => deleteTransaction(t.id)} className="p-2 text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                              <TrashIcon size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                </div>
              </div>
           )}
 
-          {/* Outras abas simplificadas para o exemplo */}
+          {activeTab === 'alice' && (
+            <CoparentingModule 
+              child={state.child} 
+              transactions={state.transactions} 
+              visitations={state.visitations} 
+              onAddTransaction={addTransaction} 
+              onDeleteTransaction={deleteTransaction} 
+              onAddVisitation={(v) => setState(p => ({...p, visitations: [{...v, id: crypto.randomUUID()}, ...p.visitations]}))} 
+              onDeleteVisitation={(id) => setState(p => ({ ...p, visitations: p.visitations.filter(v => v.id !== id) }))} 
+              onUpdateChild={(data) => setState(p => ({ ...p, child: { ...p.child, ...data } }))} 
+              pensionAmount={state.monthlyPensionAmount} 
+              pensionStatus={state.childSupportStatus} 
+            />
+          )}
+
+          {activeTab === 'ajuda' && (
+            <div className="animate-in fade-in duration-500 glass rounded-[3rem] h-[calc(100vh-250px)] max-h-[750px] flex flex-col overflow-hidden border-white/5 shadow-2xl">
+              <div className="p-8 border-b border-white/5 flex items-center gap-4 bg-white/5">
+                <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><AiIcon /></div>
+                <div>
+                  <h4 className="font-black text-white text-base">Assistente Pro</h4>
+                  <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Consultoria Financeira IA</p>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-black/40">
+                {chatMessages.length === 0 && (
+                  <div className="h-full flex items-center justify-center text-center p-10 opacity-30 flex-col gap-4">
+                    <AiIcon />
+                    <p className="text-xs font-black uppercase tracking-widest">Olá! Como posso ajudar com suas finanças ou coparentalidade hoje?</p>
+                  </div>
+                )}
+                {chatMessages.map(m => (
+                  <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
+                    <div className={`max-w-[85%] p-5 rounded-[2rem] text-xs leading-relaxed ${m.role === 'user' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white/5 text-slate-200 border border-white/10'}`}>
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && <div className="text-[10px] font-black text-indigo-400 animate-pulse uppercase tracking-widest ml-4">Analisando dados...</div>}
+                <div ref={chatEndRef} />
+              </div>
+              <form onSubmit={handleChatSubmit} className="p-6 border-t border-white/5 flex gap-3 bg-white/5">
+                <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Pergunte qualquer coisa..." className="flex-1 bg-black/40 border border-white/10 p-5 rounded-[1.5rem] outline-none focus:border-indigo-500 text-white text-xs font-bold transition-all shadow-inner" />
+                <button type="submit" disabled={isLoading} className="w-14 h-14 bg-indigo-600 text-white rounded-[1.5rem] shadow-lg hover:scale-105 transition flex items-center justify-center shrink-0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                </button>
+              </form>
+            </div>
+          )}
+
           {activeTab === 'configuracoes' && (
-            <Settings state={state} onUpdateState={updateState} onResetData={() => setState(INITIAL_STATE)} onShowSql={handleManualSync} syncStatus={syncStatus} />
+            <Settings 
+              state={state} 
+              onUpdateState={updateState} 
+              onResetData={() => { if(confirm("Deseja apagar tudo?")) { updateState(INITIAL_STATE); showNotification("Resetado."); } }} 
+              onShowSql={handleManualSync} 
+              syncStatus={syncStatus} 
+            />
           )}
         </main>
       </div>
+
+      {/* Modais Globais - Lógica de UI Preservada */}
+      {globalModal === 'transaction' && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="glass max-w-sm w-full p-8 rounded-[3rem] shadow-2xl border-white/10">
+            <h3 className="text-xl font-black text-white mb-8 uppercase tracking-tighter">Novo Lançamento</h3>
+            <TransactionForm onClose={() => setGlobalModal(null)} onSubmit={(t) => { addTransaction(t); setGlobalModal(null); }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
+// Componentes Auxiliares FAB
 const FabSubButton = ({ onClick, label, icon, color }: any) => (
   <div className="flex items-center gap-3">
     <span className="px-3 py-1.5 bg-slate-900/90 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl backdrop-blur-md">{label}</span>
@@ -231,20 +340,52 @@ const FabSubButton = ({ onClick, label, icon, color }: any) => (
 );
 
 const NavIcon = ({ active, onClick, icon }: any) => (
-  <button onClick={onClick} className={`p-4 rounded-2xl transition-all ${active ? 'bg-indigo-600 text-white shadow-xl scale-110' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}>{icon}</button>
-);
-const MobileTab = ({ active, onClick, icon }: any) => (
-  <button onClick={onClick} className={`flex-1 flex justify-center p-3 rounded-2xl transition-all ${active ? 'bg-indigo-600/20 text-indigo-500' : 'text-slate-400'}`}>{icon}</button>
+  <button onClick={onClick} className={`p-4 rounded-2xl transition-all relative ${active ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] scale-110' : 'text-slate-500 hover:text-white hover:bg-slate-800/50'}`}>
+    {icon}
+    {active && <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-4 bg-indigo-500 rounded-full"></div>}
+  </button>
 );
 
+const MobileTab = ({ active, onClick, icon }: any) => (
+  <button onClick={onClick} className={`flex-1 flex justify-center p-3 rounded-2xl transition-all ${active ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-600'}`}>{icon}</button>
+);
+
+// Formulário de Transação Reduzido
+const TransactionForm = ({ onClose, onSubmit }: any) => {
+  const [desc, setDesc] = useState('');
+  const [amount, setAmount] = useState('');
+  const [type, setType] = useState(TransactionType.EXPENSE);
+  const [cat, setCat] = useState(Category.OTHER);
+
+  return (
+    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onSubmit({ date: new Date().toLocaleDateString('en-CA'), description: desc, amount: parseFloat(amount), type, category: cat, isCoparenting: false }); }}>
+      <div className="space-y-4">
+        <input required type="text" placeholder="O que você comprou?" value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-indigo-500" />
+        <input required type="number" step="any" placeholder="R$ 0,00" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white outline-none focus:border-indigo-500 font-black" />
+        <div className="flex gap-2">
+           <button type="button" onClick={() => setType(TransactionType.EXPENSE)} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${type === TransactionType.EXPENSE ? 'bg-rose-600 text-white' : 'bg-white/5 text-slate-500'}`}>Despesa</button>
+           <button type="button" onClick={() => setType(TransactionType.INCOME)} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${type === TransactionType.INCOME ? 'bg-emerald-600 text-white' : 'bg-white/5 text-slate-500'}`}>Receita</button>
+        </div>
+      </div>
+      <div className="flex gap-4 pt-4">
+        <button type="button" onClick={onClose} className="flex-1 py-4 text-[9px] font-black uppercase text-slate-500">Voltar</button>
+        <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[9px] font-black uppercase shadow-lg shadow-indigo-500/20">Confirmar</button>
+      </div>
+    </form>
+  );
+};
+
+// SVG Icons Otimizados
 const DashboardIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>;
 const FinanceIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 const ChildIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
 const AiIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>;
 const SettingsIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg>;
 const PlusIcon = ({ size = 24 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-const CloudIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.2-3.9-4.5-1.1-2.9-3.9-5-7.1-5-3.6 0-6.6 2.6-7.2 6.1C1.8 11.7 0 13.7 0 16c0 2.8 2.2 5 5 5h12.5"/><polyline points="12 12 12 18"/><polyline points="9 15 12 12 15 15"/></svg>;
-const CalendarIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
-const TargetIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>;
+const CloudIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17.5 19c2.5 0 4.5-2 4.5-4.5 0-2.3-1.7-4.2-3.9-4.5-1.1-2.9-3.9-5-7.1-5-3.6 0-6.6 2.6-7.2 6.1C1.8 11.7 0 13.7 0 16c0 2.8 2.2 5 5 5h12.5"/><polyline points="12 12 12 18"/><polyline points="9 15 12 12 15 15"/></svg>;
+const CalendarIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const TrendingUpIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+const TrendingDownIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>;
+const TrashIcon = ({ size = 20 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 
 export default App;
