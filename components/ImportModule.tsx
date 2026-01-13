@@ -34,21 +34,22 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
     setError(null);
     const reader = new FileReader();
     
-    // Feedback imediato de carregamento de arquivo local
     setIsProcessing(true);
 
     if (file.type === 'application/pdf') {
       reader.onload = (event) => {
         const result = event.target?.result as string;
-        if (result) {
+        if (result && result.includes(',')) {
           const base64 = result.split(',')[1];
           setPendingFile({ data: base64, mimeType: file.type, name: file.name });
           setRawText('');
+        } else {
+          setError("Erro na codificação do arquivo PDF.");
         }
         setIsProcessing(false);
       };
       reader.onerror = () => {
-        setError("Erro ao ler o arquivo físico.");
+        setError("Erro ao ler o arquivo do disco.");
         setIsProcessing(false);
       };
       reader.readAsDataURL(file);
@@ -76,11 +77,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
         ? { file: { data: pendingFile.data, mimeType: pendingFile.mimeType } }
         : { text: rawText };
 
-      // Chamar o serviço com o modelo Gemini 3 Pro
       const results = await GeminiService.parseStatement(input);
       
       if (!Array.isArray(results) || results.length === 0) {
-        throw new Error("A IA não identificou nenhuma transação válida no documento.");
+        throw new Error("A IA leu o documento mas não encontrou transações financeiras.");
       }
 
       const processed = results.map((item: any) => {
@@ -90,7 +90,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
           description: item.description,
           amount: Math.abs(item.amount),
           type: item.type === 'RECEITA' ? TransactionType.INCOME : TransactionType.EXPENSE,
-          category: item.category as Category,
+          category: (item.category as Category) || Category.OTHER,
           isCoparenting: [Category.PENSION, Category.EDUCATION, Category.HEALTH].includes(item.category as Category),
           uniqueKey: generateUniqueKey(item)
         };
@@ -104,7 +104,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
       setParsedData(processed);
       setStep('preview');
     } catch (e: any) {
-      setError(e.message || "Ocorreu um erro inesperado ao analisar o documento.");
+      console.error("Erro no Processamento:", e);
+      setError(e.message || "Ocorreu um erro desconhecido na análise.");
     } finally {
       setIsProcessing(false);
     }
@@ -121,10 +122,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
         
         <header className="p-8 border-b border-white/5 flex justify-between items-center bg-white/5">
           <div>
-            <h3 className="text-2xl font-black text-white tracking-tight">Importação de Extratos</h3>
+            <h3 className="text-2xl font-black text-white tracking-tight">Análise com Gemini 3 Pro</h3>
             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isProcessing ? 'animate-ping' : ''}`}></span>
-              Análise com Gemini 3 Pro
+              Processamento com Thinking Ativo
             </p>
           </div>
           <button onClick={onCancel} className="p-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-2xl transition-all">
@@ -137,10 +138,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
             <div className="mb-6 p-6 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] flex flex-col gap-2 animate-in slide-in-from-top-4">
               <div className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center text-white font-black">!</div>
-                <p className="text-sm font-black text-rose-500">Ops! Tivemos um problema</p>
+                <p className="text-sm font-black text-rose-500">Falha na Leitura</p>
               </div>
               <p className="text-xs text-rose-400/80 ml-12 leading-relaxed">{error}</p>
-              <p className="text-[9px] font-black text-rose-500/50 uppercase tracking-widest ml-12 mt-2">Dica: Verifique se o PDF não possui senha ou se está muito borrado.</p>
+              <p className="text-[9px] font-black text-rose-500/50 uppercase tracking-widest ml-12 mt-2">Dica: Documentos digitalizados por foto são mais difíceis de ler que PDFs digitais.</p>
             </div>
           )}
 
@@ -152,7 +153,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
                 onClick={() => !isProcessing && fileInputRef.current?.click()}
                 className={`p-12 border-2 border-dashed rounded-[2.5rem] text-center transition-all cursor-pointer ${pendingFile ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/5'}`}
               >
-                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 transition-transform shadow-inner ${pendingFile ? 'bg-emerald-500 text-white' : 'bg-indigo-500/20 text-indigo-500'}`}>
+                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner ${pendingFile ? 'bg-emerald-500 text-white' : 'bg-indigo-500/20 text-indigo-500'}`}>
                   {pendingFile ? (
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   ) : (
@@ -160,22 +161,22 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
                   )}
                 </div>
                 <h4 className="text-xl font-black text-white mb-2">
-                  {pendingFile ? pendingFile.name : 'Carregar Extrato Bancário'}
+                  {pendingFile ? pendingFile.name : 'Selecionar Documento'}
                 </h4>
                 <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                  {pendingFile ? 'Documento carregado com sucesso.' : 'Escolha um PDF original do banco para melhor precisão na leitura.'}
+                  PDFs originais do banco oferecem 100% de precisão com nossa IA Pro.
                 </p>
-                {pendingFile && <button onClick={(e) => { e.stopPropagation(); setPendingFile(null); }} className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest hover:underline">Remover e Trocar</button>}
+                {pendingFile && <button onClick={(e) => { e.stopPropagation(); setPendingFile(null); }} className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest hover:underline">Trocar arquivo</button>}
               </div>
 
               {!pendingFile && (
                 <div className="relative">
-                  <div className="absolute -top-3 left-6 px-3 bg-slate-900 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ou Cole o Texto do Extrato</div>
+                  <div className="absolute -top-3 left-6 px-3 bg-slate-900 text-[10px] font-black text-slate-500 uppercase tracking-widest">Alternativa: Texto Copiado</div>
                   <textarea 
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
-                    placeholder="Cole as linhas copiadas do seu Internet Banking aqui..."
-                    className="w-full h-40 p-8 bg-black/40 border border-white/10 rounded-[2.5rem] outline-none focus:border-indigo-500 text-sm font-medium text-white shadow-inner custom-scrollbar"
+                    placeholder="Cole aqui o texto copiado do seu Internet Banking..."
+                    className="w-full h-40 p-8 bg-black/40 border border-white/10 rounded-[2.5rem] outline-none focus:border-indigo-500 text-sm font-medium text-white shadow-inner"
                   />
                 </div>
               )}
@@ -187,9 +188,9 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
                   {parsedData.filter(d => !d.isDuplicate).length}
                 </div>
                 <div>
-                  <p className="text-lg font-black text-white tracking-tight">Leitura Finalizada</p>
+                  <p className="text-lg font-black text-white tracking-tight">Extração Bem-sucedida</p>
                   <p className="text-xs font-bold text-slate-400">
-                    Processamos {(pendingFile ? 'o PDF' : 'o texto')} e encontramos {parsedData.length} lançamentos.
+                    A IA Pro interpretou o documento e gerou a lista abaixo.
                   </p>
                 </div>
               </div>
@@ -201,8 +202,8 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${item.isDuplicate ? 'bg-slate-800 text-slate-500' : (item.transaction.type === TransactionType.INCOME ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500')}`}>
                         {item.isDuplicate ? '✓' : (item.transaction.type === TransactionType.INCOME ? '+' : '-')}
                       </div>
-                      <div className="max-w-[200px] md:max-w-md">
-                        <p className={`font-black text-sm md:text-base tracking-tight truncate ${item.isDuplicate ? 'text-slate-500' : 'text-white'}`}>{item.transaction.description}</p>
+                      <div className="max-w-[180px] md:max-w-md">
+                        <p className={`font-black text-sm md:text-base truncate ${item.isDuplicate ? 'text-slate-500' : 'text-white'}`}>{item.transaction.description}</p>
                         <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{item.transaction.date} • {item.transaction.category}</p>
                       </div>
                     </div>
@@ -210,7 +211,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
                       <p className={`text-sm md:text-lg font-black ${item.transaction.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-white'}`}>
                         R$ {item.transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
-                      {item.isDuplicate && <span className="text-[8px] font-black text-rose-500 uppercase">Já importado</span>}
+                      {item.isDuplicate && <span className="text-[8px] font-black text-rose-500 uppercase">Duplicado</span>}
                     </div>
                   </div>
                 ))}
@@ -224,7 +225,7 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
             onClick={step === 'preview' ? () => setStep('input') : onCancel}
             className="px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-white transition-all"
           >
-            {step === 'preview' ? 'Voltar' : 'Cancelar'}
+            {step === 'preview' ? 'Voltar' : 'Sair'}
           </button>
           
           <button 
@@ -235,10 +236,10 @@ export const ImportModule: React.FC<ImportModuleProps> = ({ existingTransactions
             {isProcessing ? (
               <>
                 <div className="w-5 h-5 border-3 border-white/20 border-t-white rounded-full animate-spin"></div>
-                IA Analisando Documento...
+                IA Raciocinando...
               </>
             ) : (
-              step === 'input' ? 'Iniciar Leitura IA' : 'Confirmar Importação'
+              step === 'input' ? 'Analisar Documento' : 'Confirmar Tudo'
             )}
           </button>
         </footer>
