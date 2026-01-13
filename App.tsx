@@ -97,17 +97,17 @@ const App: React.FC = () => {
   }, [chatMessages]);
 
   const addOrUpdateTransaction = (t: Omit<Transaction, 'id'> | Transaction) => {
-    if ('id' in t) {
+    if ('id' in t && (t as Transaction).id) {
       setState(prev => ({
         ...prev,
-        transactions: (prev.transactions || []).map(item => item.id === t.id ? (t as Transaction) : item)
+        transactions: (prev.transactions || []).map(item => item.id === (t as Transaction).id ? (t as Transaction) : item)
       }));
       showNotification("Atualizado com sucesso!");
     } else {
       const newTransaction = { ...t, id: crypto.randomUUID(), uniqueKey: `${t.date}_${t.amount}_${t.description}` };
       setState(prev => ({
         ...prev,
-        transactions: [newTransaction, ...(prev.transactions || [])],
+        transactions: [newTransaction as Transaction, ...(prev.transactions || [])],
         childSupportStatus: t.category === Category.PENSION ? 'Pago' : prev.childSupportStatus
       }));
       showNotification("Novo registro salvo!");
@@ -257,7 +257,7 @@ const App: React.FC = () => {
                             </div>
                             <div>
                               <p className="text-sm font-black text-white">{t.description}</p>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t.date} • {t.category}</p>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t.date.split('-').reverse().join('/')} • {t.category}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
@@ -288,7 +288,8 @@ const App: React.FC = () => {
               onEditDocument={(d) => { setEditItem(d); setGlobalModal('document'); }}
               onDeleteDocument={(id) => setState(p => ({ ...p, documents: p.documents.filter(d => d.id !== id) }))}
               onUpdateChild={(data) => setState(p => ({ ...p, child: { ...p.child, ...data } }))} 
-              onEditPension={() => setGlobalModal('pension')} pensionAmount={state.monthlyPensionAmount} pensionStatus={state.childSupportStatus} 
+              onEditPension={() => setGlobalModal('pension')} pensionAmount={state.monthlyPensionAmount} pensionStatus={state.childSupportStatus}
+              onRequestTransactionForm={(partial) => { setEditItem(partial); setGlobalModal('transaction'); }}
             />
           )}
 
@@ -345,7 +346,7 @@ const App: React.FC = () => {
           <div className="glass max-w-md w-full p-10 rounded-[3rem] border-white/10 shadow-3xl">
             {globalModal === 'transaction' && (
               <>
-                <h3 className="text-xl font-black text-white mb-8 uppercase tracking-tight">{editItem ? 'Editar Lançamento' : 'Novo Registro'}</h3>
+                <h3 className="text-xl font-black text-white mb-8 uppercase tracking-tight">{editItem?.id ? 'Editar Lançamento' : 'Novo Registro'}</h3>
                 <TransactionForm initialData={editItem} onClose={() => { setGlobalModal(null); setEditItem(null); }} onSubmit={(t: any) => { addOrUpdateTransaction(t); setGlobalModal(null); setEditItem(null); }} />
               </>
             )}
@@ -396,23 +397,76 @@ const MobileTab = ({ active, onClick, icon }: any) => (
 const TransactionForm = ({ onClose, onSubmit, initialData }: any) => {
   const [desc, setDesc] = useState(initialData?.description || '');
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
+  const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
   const [type, setType] = useState(initialData?.type || TransactionType.EXPENSE);
   const [cat, setCat] = useState(initialData?.category || Category.OTHER);
+  const [attachment, setAttachment] = useState(initialData?.attachment || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachment(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
-    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...initialData, date: initialData?.date || new Date().toLocaleDateString('en-CA'), description: desc, amount: parseFloat(amount), type, category: cat }); }}>
-      <input required type="text" placeholder="Descrição" value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-white outline-none focus:border-indigo-500" />
-      <input required type="number" step="any" placeholder="Valor R$ 0,00" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-white text-xl font-black outline-none focus:border-indigo-500" />
+    <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...initialData, date, description: desc, amount: parseFloat(amount), type, category: cat, attachment, isCoparenting: initialData?.isCoparenting ?? (cat === Category.PENSION) }); }}>
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+      
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data</label>
+        <input required type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-white outline-none focus:border-indigo-500 transition-all" />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Descrição</label>
+        <input required type="text" placeholder="Ex: Mercado, Aluguel..." value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-white outline-none focus:border-indigo-500" />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Valor</label>
+        <input required type="number" step="any" placeholder="R$ 0,00" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-white text-xl font-black outline-none focus:border-indigo-500" />
+      </div>
+      
       <div className="flex gap-2">
         <button type="button" onClick={() => setType(TransactionType.EXPENSE)} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase border transition-all ${type === TransactionType.EXPENSE ? 'bg-rose-600 border-rose-600 text-white' : 'border-white/10 text-slate-500'}`}>Despesa</button>
         <button type="button" onClick={() => setType(TransactionType.INCOME)} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase border transition-all ${type === TransactionType.INCOME ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-white/10 text-slate-500'}`}>Receita</button>
       </div>
-      <select value={cat} onChange={(e) => setCat(e.target.value as any)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-slate-400 outline-none text-sm font-bold">
-        {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-      </select>
+
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Categoria</label>
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.1em] hover:text-white transition flex items-center gap-2">
+            {attachment ? 'Trocar Comprovante' : '+ Anexar Comprovante'}
+          </button>
+        </div>
+        <select value={cat} onChange={(e) => setCat(e.target.value as any)} className="w-full p-4 bg-black/40 border border-white/5 rounded-xl text-slate-400 outline-none text-sm font-bold">
+          {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        
+        {attachment && (
+          <div className="relative w-full aspect-video rounded-2xl bg-black/40 border border-white/5 overflow-hidden group">
+            {attachment.startsWith('data:application/pdf') ? (
+              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span className="text-[8px] font-black uppercase mt-2">Documento PDF</span>
+              </div>
+            ) : (
+              <img src={attachment} alt="Anexo" className="w-full h-full object-cover" />
+            )}
+            <button onClick={() => setAttachment('')} className="absolute top-2 right-2 p-2 bg-rose-600 text-white rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all">
+              <TrashIcon size={12} />
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-4 pt-4">
         <button type="button" onClick={onClose} className="flex-1 py-4 text-xs font-black uppercase text-slate-500">Voltar</button>
-        <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase shadow-xl">Salvar</button>
+        <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase shadow-xl hover:scale-105 active:scale-95 transition-all">Salvar</button>
       </div>
     </form>
   );

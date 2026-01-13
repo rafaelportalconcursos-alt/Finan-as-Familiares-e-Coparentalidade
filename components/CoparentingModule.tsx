@@ -20,6 +20,7 @@ interface CoparentingModuleProps {
   onEditPension: () => void;
   pensionAmount: number;
   pensionStatus: string;
+  onRequestTransactionForm: (partial: Partial<Transaction>) => void;
 }
 
 const formatDateSafe = (dateStr: string) => {
@@ -47,11 +48,13 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
   onUpdateChild,
   onEditPension,
   pensionAmount,
-  pensionStatus
+  pensionStatus,
+  onRequestTransactionForm
 }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'visitation' | 'pension' | 'extra' | 'documents'>('summary');
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(child.name);
+  const [viewingAttachment, setViewingAttachment] = useState<string | null>(null);
   
   const extraExpenses = useMemo(() => 
     (transactions || []).filter(t => t.isCoparenting && t.category !== Category.PENSION), 
@@ -92,7 +95,23 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       
-      {/* Navegação Superior - Premium Mockup Style */}
+      {/* Visualizador de Comprovante Modal */}
+      {viewingAttachment && (
+        <div className="fixed inset-0 z-[500] bg-black/95 flex items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in">
+          <button onClick={() => setViewingAttachment(null)} className="absolute top-10 right-10 p-5 text-white/40 hover:text-white transition-all bg-white/5 rounded-2xl">
+             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <div className="max-w-4xl w-full max-h-[80vh] rounded-[3rem] overflow-hidden shadow-2xl border border-white/10">
+             {viewingAttachment.startsWith('data:application/pdf') ? (
+               <iframe src={viewingAttachment} className="w-full h-[80vh] border-none" />
+             ) : (
+               <img src={viewingAttachment} className="w-full h-full object-contain" />
+             )}
+          </div>
+        </div>
+      )}
+
+      {/* Navegação Superior */}
       <div className="bg-slate-900/40 rounded-[2.5rem] p-2 flex border border-white/5 backdrop-blur-xl shadow-2xl overflow-x-auto no-scrollbar">
         {[
           { id: 'summary', label: 'Resumo', icon: <HeartIcon /> },
@@ -115,7 +134,6 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
       <div className="min-h-[500px]">
         {activeTab === 'summary' && (
           <div className="space-y-8 animate-in zoom-in-95 duration-500">
-            {/* Cabeçalho de Resumo Premium */}
             <div className="glass p-10 rounded-[3.5rem] shadow-xl border-white/5 flex flex-col lg:flex-row items-center gap-12 bg-slate-900/20 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -z-10"></div>
               
@@ -228,7 +246,7 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
                 <h3 className="text-2xl font-black text-white tracking-tight">Controle de Pensão</h3>
                 <div className="flex gap-4">
                    <button onClick={onEditPension} className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition">Editar Valor</button>
-                   <button onClick={() => onAddTransaction({ date: new Date().toLocaleDateString('en-CA'), description: `Pensão ${new Date().toLocaleDateString('pt-BR', {month: 'long'})}`, amount: pensionAmount, type: TransactionType.EXPENSE, category: Category.PENSION, isCoparenting: true })} className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition shadow-lg shadow-emerald-500/20">Lançar Pagamento</button>
+                   <button onClick={() => onRequestTransactionForm({ date: new Date().toLocaleDateString('en-CA'), description: `Pensão ${new Date().toLocaleDateString('pt-BR', {month: 'long'})}`, amount: pensionAmount, type: TransactionType.EXPENSE, category: Category.PENSION, isCoparenting: true })} className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition shadow-lg shadow-emerald-500/20">Lançar Pagamento</button>
                 </div>
              </div>
              
@@ -258,7 +276,13 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
                     {pensionPayments.map(p => (
                       <div key={p.id} className="flex items-center justify-between p-6 bg-white/5 rounded-[2rem] border border-white/5 hover:border-emerald-500/30 transition-all group">
                         <div className="flex items-center gap-5">
-                          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform"><CheckIcon size={24} /></div>
+                          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform shadow-[0_4px_10px_rgba(16,185,129,0.1)]">
+                             {p.attachment ? (
+                               <button onClick={() => setViewingAttachment(p.attachment!)} className="w-full h-full flex items-center justify-center">
+                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                               </button>
+                             ) : <CheckIcon size={24} />}
+                          </div>
                           <div>
                             <p className="font-black text-white text-base tracking-tight">{p.description}</p>
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{formatDateSafe(p.date)}</p>
@@ -266,7 +290,10 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
                         </div>
                         <div className="flex items-center gap-6">
                            <p className="font-black text-white text-lg">R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                           <button onClick={() => onDeleteTransaction(p.id)} className="p-3 text-slate-700 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"><TrashIcon size={18} /></button>
+                           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                              <button onClick={() => onEditTransaction(p)} className="p-3 text-slate-700 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition-all"><EditIcon size={18} /></button>
+                              <button onClick={() => onDeleteTransaction(p.id)} className="p-3 text-slate-700 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"><TrashIcon size={18} /></button>
+                           </div>
                         </div>
                       </div>
                     ))}
@@ -278,14 +305,21 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
 
         {activeTab === 'extra' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-8 duration-500">
-             <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-white tracking-tight">Despesas Extras</h3><button onClick={() => onAddTransaction({ date: new Date().toLocaleDateString('en-CA'), description: 'Nova Despesa', amount: 0, type: TransactionType.EXPENSE, category: Category.OTHER, isCoparenting: true })} className="px-6 py-3 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition shadow-lg shadow-rose-500/20">+ Adicionar Gasto</button></div>
+             <div className="flex justify-between items-center"><h3 className="text-2xl font-black text-white tracking-tight">Despesas Extras</h3><button onClick={() => onRequestTransactionForm({ date: new Date().toLocaleDateString('en-CA'), description: 'Nova Despesa Extra', amount: 0, type: TransactionType.EXPENSE, category: Category.OTHER, isCoparenting: true })} className="px-6 py-3 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition shadow-lg shadow-rose-500/20">+ Adicionar Gasto</button></div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {extraExpenses.map(e => (
                   <div key={e.id} className="glass p-6 rounded-[2.5rem] border-white/5 flex justify-between items-center group bg-slate-900/10 hover:border-indigo-500/30 transition-all">
-                    <div>
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{e.category}</p>
-                      <h4 className="font-black text-white text-base tracking-tight">{e.description}</h4>
-                      <p className="text-[10px] text-slate-600 font-bold mt-1 uppercase tracking-widest">{formatDateSafe(e.date)}</p>
+                    <div className="flex items-center gap-5">
+                      {e.attachment && (
+                        <button onClick={() => setViewingAttachment(e.attachment!)} className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-indigo-400 hover:bg-indigo-400/10 transition-all">
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        </button>
+                      )}
+                      <div>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{e.category}</p>
+                        <h4 className="font-black text-white text-base tracking-tight">{e.description}</h4>
+                        <p className="text-[10px] text-slate-600 font-bold mt-1 uppercase tracking-widest">{formatDateSafe(e.date)}</p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="font-black text-white text-lg">R$ {e.amount.toLocaleString('pt-BR')}</p>
@@ -331,16 +365,6 @@ export const CoparentingModule: React.FC<CoparentingModuleProps> = ({
                     </div>
                   </div>
                 ))}
-                
-                <button 
-                  onClick={() => onAddDocument({ title: 'Novo Arquivo', date: new Date().toLocaleDateString('en-CA'), type: 'Legal' })}
-                  className="glass p-10 min-h-[300px] rounded-[2.5rem] border-dashed border-white/10 text-slate-600 hover:text-white hover:border-indigo-500/50 transition-all flex flex-col items-center justify-center gap-4 bg-slate-900/5 group shadow-2xl"
-                >
-                  <div className="w-16 h-16 bg-white/5 rounded-[2rem] flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500/10 transition-all">
-                    <PlusIcon size={32} />
-                  </div>
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">+ Novo Arquivo</span>
-                </button>
              </div>
           </div>
         )}
@@ -377,3 +401,5 @@ const EditIcon = ({ size = 20 }: any) => <svg width={size} height={size} viewBox
 const TrashIcon = ({ size = 20 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
 const PlusIcon = ({ size = 20 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 const ChevronRightIcon = ({ size = 20 }: any) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6"/></svg>;
+
+export default CoparentingModule;
